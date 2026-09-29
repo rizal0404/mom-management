@@ -1,0 +1,47 @@
+{
+  "label": "AUDIT DATA DEMO 1790086033568",
+  "findings": [
+    {
+      "name": "deadline_without_reason",
+      "accepted": true,
+      "error": null
+    },
+    {
+      "name": "null_expected_version",
+      "accepted": true,
+      "error": null
+    },
+    {
+      "name": "remove_first_item",
+      "accepted": false,
+      "code": "23505",
+      "error": "duplicate key value violates unique constraint \"meeting_items_position_once\""
+    },
+    {
+      "name": "action_after_first_25",
+      "databaseRecordExists": true,
+      "UI": "Tindak lanjut tidak tersedia\n\nTindak lanjut tidak ditemukan atau tidak dapat diakses.\n\nKembali ke tracker",
+      "actionId": "fdb01a85-5870-4106-b0cb-75d7db96b30d"
+    },
+    {
+      "name": "dirty_finalization",
+      "displayedUnsavedAsFinal": true,
+      "afterReload": "HASIL LAMA DATA DEMO",
+      "meetingId": "2fc1e29e-0d93-4487-b408-83250a24c8e0"
+    },
+    {
+      "name": "dirty_internal_navigation",
+      "leftWithoutWarning": true,
+      "dialogs": 0
+    },
+    {
+      "name": "timeline_error_recovery",
+      "errorRemainsAfterSuccessfulNewWeek": true
+    }
+  ],
+  "fixtureIds": [
+    "b96cb923-a43c-4646-ac08-d8311154500f",
+    "65bcdb66-1936-4332-a7b2-09418b991a80",
+    "2fc1e29e-0d93-4487-b408-83250a24c8e0"
+  ]
+}
