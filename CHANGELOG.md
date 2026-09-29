@@ -4,6 +4,14 @@ Catat perubahan yang benar-benar sudah dibuat. Rencana masa depan tetap di IMPLE
 
 ## [Unreleased]
 
+### Backend cloud dan Tahap 0 — 2026-09-29
+
+- Menerapkan 14 migration ke proyek Supabase cloud `iccxlwfzojwtmwwvpfoe` tanpa seed, termasuk bucket Storage `evidence` privat dan kebijakan soft-delete terbaru. Deploy `manage-users` berhasil; signup publik dimatikan. Frontend lokal memakai URL cloud dan publishable key, tanpa secret. [Bukti migrasi](docs/qa/CLOUD-SUPABASE-2026-09-29.md).
+- MOM-004/005: input waktu rapat konsisten WITA pada zona browser berbeda, indikator simpan sesuai keadaan, gagal simpan mempertahankan input, dan dialog finalisasi mendukung fokus/Tab/Escape. MOM-006: migration RLS menyembunyikan action terhapus dan auditnya dari API anggota. MOM-008/011/009: regresi dashboard, fixture PDF/JPEG, skrip evidence, E2E lintas pengguna, pedoman UI, serta checklist UAT diperluas. [Bukti Tahap 0](docs/qa/STAGE-0-2026-09-29.md).
+- `test:e2e` kini menolak URL cloud agar fixture DATA DEMO tidak terkirim. Typecheck, lint (0 error/1 warning lama), unit 20/20, build, dan Edge UI-mock PASS. DB/Storage/E2E terintegrasi tetap BLOCKED karena lingkungan uji disposable belum tersedia. Pra-UAT awal hanya baca-saja; hasil UAT parsial sesudah persetujuan dicatat di bawah. Task Tahap 0 tetap IN_PROGRESS.
+- Setelah persetujuan pengguna, UAT cloud parsial PASS untuk simpan/reload dan privasi draf, finalisasi tepat dua action, update PIC dan audit, ringkasan tracker/timeline/dashboard, serta pembuatan lalu penonaktifan akun MEMBER uji. Satu notula FINAL dan dua action DONE berlabel DATA DEMO dipertahankan. PDF/JPEG berhasil diunggah ke notula dan lulus preview/zoom/Escape setelah reload; evidence task masih kosong dan unduh belum terverifikasi. Gate DB/Storage/E2E dan UAT penuh tetap BLOCKED/IN_PROGRESS; rincian per skenario di `docs/qa/MOM-009-UAT.md`.
+- Temuan UAT F-01: setelah akun PIC nonaktif, detail notula/tracker/audit tidak lagi menyelesaikan namanya dan dropdown action menampilkan nilai admin aktif; belum dibuktikan bahwa assignment database berubah. Perbaiki penyajian nama historis tanpa membuka akses profil nonaktif.
+
 ### Documentation — 2026-09-29, DOC-002
 
 - Menambahkan [rencana pengembangan](docs/DEVELOPMENT_ROADMAP.md) berdasarkan source, status task dan QA terakhir, dengan prioritas pilihan pengguna: template agenda → rapat lanjutan → bantuan AI dari teks yang ditinjau manusia.

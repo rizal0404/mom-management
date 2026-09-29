@@ -47,6 +47,12 @@ npm run test:db
 
 Fixture lokal memakai empat akun berlabel `DATA DEMO`. Fixture ini hanya dibuat oleh `supabase/seed.sql` saat reset lokal dan tidak boleh dipakai di project cloud. Sign-up publik dimatikan pada konfigurasi lokal.
 
+## Backend Supabase cloud
+
+Pada 29 September 2026, skema dari 14 migration, bucket privat `evidence`, dan Edge Function `manage-users` diterapkan ke proyek `iccxlwfzojwtmwwvpfoe`. Pendaftaran publik dimatikan. [Bukti dan batas migrasi](docs/qa/CLOUD-SUPABASE-2026-09-29.md) mencatat hasil verifikasi; tidak ada seed atau data rapat yang dipindahkan. `.env.local` pada mesin ini memakai URL cloud dan publishable key, sedangkan `.env.example` tetap template tanpa kredensial.
+
+Untuk memelihara cloud dari mesin lain, instal [Supabase CLI resmi](https://supabase.com/docs/guides/local-development/cli/getting-started), lalu `supabase login` dan `supabase link --project-ref iccxlwfzojwtmwwvpfoe`. Tinjau `supabase db push --dry-run` sebelum menerapkan migration baru dengan `supabase db push`. Jangan menjalankan `db reset --linked` atau `db push --include-seed` pada proyek ini. Akun ADMIN aplikasi pertama belum dibuat; login/UAT cloud menunggu identitas awal yang dipilih pemilik proyek. `test:db`, `test:evidence`, dan `test:e2e` yang membuat DATA DEMO harus tetap memakai Supabase lokal disposable.
+
 Untuk menjalankan aplikasi/E2E dengan database lokal, isi `.env.local` hanya dengan `VITE_SUPABASE_URL` dan `VITE_SUPABASE_PUBLISHABLE_KEY` dari `supabase status`; jangan masukkan service-role/secret key. `npm run test:e2e` memakai Microsoft Edge lokal, membuka Vite di `127.0.0.1:5174`, dan dua sesi browser terpisah. Jalankan setelah `supabase start` serta `npm run db:reset:local`. E2E membuat notula/action **DATA DEMO** tambahan; reset lokal menghapus semua data pada database lokal proyek ini, jadi jangan jalankan reset di lingkungan dengan data yang ingin dipertahankan. Hasil UAT manual dicatat menurut [checklist UAT](docs/qa/MOM-009-UAT.md).
 
 ## Kelola pengguna MOM-010

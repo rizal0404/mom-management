@@ -22,7 +22,10 @@ const user = { id: userId, aud: 'authenticated', role: 'authenticated', email: '
 const profile = { id: userId, display_name: 'QA DATA DEMO', role: 'MEMBER', is_active: true }
 let meeting
 let failSaveOnce = false
-const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '5175', '--strictPort'], { stdio: 'ignore', windowsHide: true })
+const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '5175', '--strictPort'], {
+  stdio: 'ignore', windowsHide: true,
+  env: { ...process.env, VITE_SUPABASE_URL: apiOrigin, VITE_SUPABASE_PUBLISHABLE_KEY: 'DATA_DEMO_MOCK_KEY' },
+})
 let browser
 
 async function mockApi(route) {

@@ -1,6 +1,6 @@
 # Progress implementasi
 
-Diperbarui: 2026-09-29 untuk perencanaan DOC-002; status aplikasi berikut merujuk bukti sampai 24 September 2026 dan belum diuji ulang pada sesi dokumentasi ini. MOM-001–003, MOM-007, dan MOM-010 DONE secara teknis; MOM-004/005/006/008/009/011 tetap IN_PROGRESS karena perubahan lanjutan, temuan lain, dan UAT masih terbuka. UAT pengguna belum dijalankan. Lihat [laporan audit](docs/qa/AUDIT-2026-09-22.md). Catatan sesi sebelumnya dipertahankan sebagai riwayat, bukan status terkini.
+Diperbarui: 2026-09-29. Backend Supabase cloud berisi 14 migration, bucket `evidence` privat, dan fungsi `manage-users`; setelah UAT parsial, cloud juga berisi satu akun MEMBER nonaktif, satu notula DATA DEMO FINAL dengan dua evidence PDF/JPEG, serta dua tindak lanjut DONE. Evidence task masih kosong; tidak ada seed/reset. MOM-001–003, MOM-007, dan MOM-010 tetap DONE secara teknis; MOM-004/005/006/008/009/011 tetap IN_PROGRESS karena gate DB/Storage/E2E terintegrasi dan UAT belum selesai. Lihat [bukti cloud](docs/qa/CLOUD-SUPABASE-2026-09-29.md), [checklist UAT](docs/qa/MOM-009-UAT.md), [hasil Tahap 0](docs/qa/STAGE-0-2026-09-29.md), dan [laporan audit](docs/qa/AUDIT-2026-09-22.md).
 
 Status task: TODO / IN_PROGRESS / BLOCKED / DONE. Status pemeriksaan: PASS / FAIL / NOT_RUN / BLOCKED. Gunakan status secara terpisah.
 
@@ -16,9 +16,9 @@ Status task: TODO / IN_PROGRESS / BLOCKED / DONE. Status pemeriksaan: PASS / FAI
 | MOM-006 | Tracker dan update | IN_PROGRESS | A02/A04/A05/A09 sebelumnya PASS. Aksi hapus task memakai soft-delete dengan audit dipertahankan; DB/E2E delete NOT_RUN. Follow-up tampilan audit PASS: daftar per field menggantikan JSON mentah; typecheck/lint dan browser viewport aktif PASS. Responsive 390/1024/1440, DB/E2E follow-up, dan UAT NOT_RUN. Bukti: `docs/qa/MOM-006-A02-2026-09-23.md`, `docs/qa/MOM-006-A04-2026-09-23.md`, `docs/qa/MOM-006-A05-2026-09-23.md`, `docs/qa/A09-2026-09-23.md`, `docs/qa/MOM-006-audit-history-2026-09-24.md`. |
 | MOM-007 | Timeline | DONE | A02 dan A07 PASS: tautan detail halaman kedua, recovery error dengan retry, perpindahan pekan, serta perubahan filter. UAT pengguna tetap NOT_RUN. Bukti: `docs/qa/MOM-006-A02-2026-09-23.md`, `docs/qa/A07-2026-09-23.md`. |
 | MOM-008 | Dashboard dan UI | IN_PROGRESS | A08 PASS: metrik dashboard memakai count exact berotorisasi sehingga tidak dibatasi 1.000 row. Penyelarasan pedoman visual masih terbuka. Bukti: `docs/qa/A08-2026-09-23.md`. |
-| MOM-009 | Validasi menyeluruh dan handoff UAT | IN_PROGRESS | A10 PASS secara teknis; suite regresi Edge A01–A09 PASS. Gate/matriks acceptance lain dan UAT pengguna masih terbuka. Bukti: `docs/qa/A10-2026-09-23.md`. |
+| MOM-009 | Validasi menyeluruh dan handoff UAT | IN_PROGRESS | A10 PASS secara teknis; cloud UAT 29 Sep parsial: UAT-01/02/03/05/07 PASS, UAT-04 parsial UI, UAT-06/08/09/10/11 belum lengkap. Gate DB/Storage/E2E tetap BLOCKED; lihat `docs/qa/MOM-009-UAT.md`. |
 | MOM-010 | Kelola pengguna oleh ADMIN | DONE | Menu `/users`, route/sidebar admin-only, Edge Function berotorisasi admin untuk direktori/buat/edit status-peran, audit append-only, dan pengaman admin terakhir. Validasi fungsi, DB, dan Edge browser PASS pada 23 Sep 2026; UAT pengguna tetap NOT_RUN. Bukti: `docs/qa/MOM-010-2026-09-23.md`. |
-| MOM-011 | Evidence notula dan tindak lanjut | IN_PROGRESS | Implementasi + Storage/RLS/browser evidence PASS; unit 14/14. Viewer modal PNG PASS untuk baca, zoom in/out/reset, Escape, dan kembali fokus; typecheck/lint/build PASS. PDF/JPEG browser NOT_RUN karena fixture aktif hanya PNG. UAT dan regresi MVP penuh NOT_RUN. Bukti: `docs/qa/MOM-011-evidence-2026-09-24.md`, `docs/qa/MOM-011-evidence-viewer-2026-09-24.md`. |
+| MOM-011 | Evidence notula dan tindak lanjut | IN_PROGRESS | UAT cloud 29 Sep parsial: PDF/JPEG pada notula bertahan setelah reload dan lulus preview/zoom/Escape/focus; evidence pada task masih kosong, unduh belum terverifikasi, dan RLS lintas role belum diuji. Bukti: `docs/qa/MOM-011-evidence-2026-09-24.md`, `docs/qa/MOM-011-evidence-viewer-2026-09-24.md`, dan `docs/qa/MOM-009-UAT.md`. |
 
 ## 2026-09-29 — DOC-002: rencana pengembangan
 
@@ -35,7 +35,41 @@ Status task: TODO / IN_PROGRESS / BLOCKED / DONE. Status pemeriksaan: PASS / FAI
 - Sasaran sesi: menutup state simpan draf, konversi waktu rapat WITA, penghapusan draf dari daftar, dan QA browser responsif; kemudian melanjutkan task Tahap 0 lain sesuai permintaan pengguna. Status task lama tetap IN_PROGRESS sampai gate relevan dibuktikan.
 - Kondisi awal: folder kerja tidak memiliki metadata Git; hasil historis sampai 24 September dipertahankan dan database yang mungkin berisi data pengguna tidak akan di-reset untuk pengujian.
 
-## Gate MVP
+## 2026-09-29 — Implementasi Tahap 0 dan migrasi cloud
+
+- Perubahan MOM-004/005/006/008/011/009, perintah dan batas bukti dicatat di [QA Tahap 0](docs/qa/STAGE-0-2026-09-29.md). Typecheck, lint (0 error/1 warning lama), unit 20/20, build, dan Edge UI-mock PASS. E2E 12 skenario terkoleksi tetapi tidak dijalankan ke database.
+- Atas permintaan pengguna, backend cloud `iccxlwfzojwtmwwvpfoe` dimigrasikan menjadi skema dan bucket kosong. `supabase login`, `link`, dry-run dan push 14 migration PASS; fungsi `manage-users` ACTIVE; signup publik nonaktif. Rincian dan verifikasi: [QA cloud](docs/qa/CLOUD-SUPABASE-2026-09-29.md). `.env.local` memakai URL cloud dan publishable key tanpa secret.
+- Pengaman `test:e2e` menolak URL cloud sebelum menjalankan DATA DEMO. Gate DB/Storage/E2E terintegrasi tetap BLOCKED karena belum ada lingkungan uji disposable; cloud baru bukan tempat menjalankan test mutatif. Akun ADMIN aplikasi pertama belum diprovisikan; UAT NOT_RUN. Status enam task Tahap 0 tetap IN_PROGRESS.
+- Berikutnya: siapkan Supabase uji terisolasi untuk seluruh regresi, lalu pilih identitas ADMIN pertama cloud dan jalankan UAT terpisah. Tidak ada `db reset --linked`, seed DATA DEMO, atau upload evidence nyata ke cloud.
+
+## Gate Tahap 0 terkini (29 September 2026)
+
+| Gate | Hasil | Bukti / pembatas |
+|---|---|---|
+| Skema/Storage/Fungsi cloud | PASS | 14/14 migration, bucket `evidence`, fungsi `manage-users` ACTIVE, signup publik nonaktif; [QA cloud](docs/qa/CLOUD-SUPABASE-2026-09-29.md). |
+| Typecheck, lint, unit, build | PASS | `tsc -b`, ESLint 0 error/1 warning lama, Vitest 20/20, Vite build; 29 Sep 2026. |
+| Browser form WITA/state/dialog/responsif | PASS terbatas | Edge API simulasi 1440/1024/390; bukan bukti transaksi/otorisasi DB. |
+| Instalasi bersih dari lockfile | BLOCKED | `npm` tidak tersedia di PATH sesi ini. |
+| DB/Storage/RLS dan E2E terintegrasi | BLOCKED | Belum ada Supabase uji disposable; tidak dijalankan pada cloud yang baru dimigrasikan. |
+| Akun ADMIN pertama | PASS | Pra-UAT browser cloud 29 Sep: satu ADMIN aktif berhasil login; direktori menampilkan satu akun. Detail tanpa email/password pada [checklist UAT](docs/qa/MOM-009-UAT.md). |
+| UAT cloud lintas pengguna dan penulisan data | IN_PROGRESS / parsial | UAT-01/02/03/05/07 PASS melalui UI setelah disetujui; UAT-04 parsial (UI saja). Skenario lain dan Storage belum lengkap; gate DB/RLS/E2E tetap BLOCKED. Lihat [checklist UAT](docs/qa/MOM-009-UAT.md). |
+
+### 2026-09-29 — Pra-UAT cloud
+
+- Aplikasi lokal menggunakan sesi ADMIN aktif pada proyek cloud; direktori berisi satu administrator. Dashboard, daftar rapat, dan tracker menunjukkan kosong. Pemeriksaan dilakukan melalui browser nyata dan hanya membaca data; tidak ada row, akun, atau berkas baru.
+- UAT lintas pengguna belum dimulai. Checklist memerlukan setidaknya satu akun MEMBER uji dan notula yang difinalisasi; menu tidak menghapus akun, dan notula FINAL tidak dapat dihapus. Persetujuan untuk membuat fixture cloud masih menunggu pengguna.
+- Bukti: [checklist UAT](docs/qa/MOM-009-UAT.md). E2E, test:db, dan test:evidence tetap tidak dijalankan ke cloud.
+
+### 2026-09-29 — UAT cloud setelah persetujuan pengguna (parsial)
+
+- Pengguna menyetujui akun DATA DEMO, fixture uji, dan satu notula FINAL. ADMIN membuat akun MEMBER uji dan satu rapat berlabel DATA DEMO berisi keputusan, task, dan pending matter. Draf berhasil reload dan tidak terlihat bagi MEMBER; finalisasi menghasilkan tepat dua action. MEMBER menyelesaikan task miliknya dengan audit, ADMIN menutup pending matter, dan dashboard/tabel/timeline konsisten.
+- UAT-01/02/03/05/07 PASS pada UI. UAT-04 membuktikan kontrol edit non-PIC dinonaktifkan di UI saja; write langsung/RLS belum diperiksa. Uji keyboard serta penolakan sesi akun nonaktif PASS. Responsif 390 px, gagal jaringan, konflik lintas sesi, penghapusan draf/task, pengujian UTC, dan Storage penuh belum selesai.
+- Akun MEMBER DATA DEMO dinonaktifkan setelah UAT; tidak dihapus. Satu notula FINAL dan dua action DONE tetap di cloud, seluruhnya berlabel DATA DEMO. Tidak ada upload berkas.
+- Pengguna menyetujui empat objek evidence spesifik. Pengguna mengunggah PDF/JPEG pada notula FINAL; keduanya muncul setelah reload dan pratinjau PDF/JPEG, zoom 125%, Escape/fokus kembali PASS. Detail task tetap menunjukkan 0 evidence; tombol unduh dipicu tetapi hasil simpan lokal tidak dapat diverifikasi dari UI. UAT-10 parsial.
+- Temuan F-01: setelah akun MEMBER PIC dinonaktifkan, notula menunjukkan `PIC: Belum tersedia`, tracker `PIC tidak tersedia`, dan audit `Pengguna tidak tersedia`; dropdown PIC detail action menampilkan ADMIN sebagai pilihan. Ini temuan resolusi nama UI dan bukan bukti assignment berubah. Perbaikan harus menjaga nama historis dan tidak melonggarkan RLS.
+- Gate DB/Storage/E2E terintegrasi tetap BLOCKED; tidak menjalankan skrip mutatif pada cloud. Penguji/tanggal dan status per skenario ada di [checklist UAT](docs/qa/MOM-009-UAT.md).
+
+## Gate MVP historis (hingga 23 September 2026)
 
 | Gate | Hasil | Bukti |
 |---|---|---|

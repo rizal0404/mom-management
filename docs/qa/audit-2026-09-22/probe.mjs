@@ -1,5 +1,6 @@
 // Audit probes: local DATA DEMO only. Adds fixtures; never resets or deletes existing data.
 import { execFileSync } from 'node:child_process'
+import process from 'node:process'
 import { writeFileSync, readFileSync } from 'node:fs'
 import console from 'node:console'
 import { URL } from 'node:url'

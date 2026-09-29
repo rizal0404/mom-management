@@ -1,5 +1,6 @@
 // Resume UI checks on the existing audit draft; no new database fixture.
 import { readFileSync, writeFileSync } from 'node:fs'
+import process from 'node:process'
 import console from 'node:console'
 import { URL } from 'node:url'
 import { chromium, expect } from '@playwright/test'
