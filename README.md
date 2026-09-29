@@ -47,7 +47,7 @@ npm run test:db
 
 Fixture lokal memakai empat akun berlabel `DATA DEMO`. Fixture ini hanya dibuat oleh `supabase/seed.sql` saat reset lokal dan tidak boleh dipakai di project cloud. Sign-up publik dimatikan pada konfigurasi lokal.
 
-Untuk menjalankan aplikasi/E2E dengan database lokal, isi `.env.local` hanya dengan `VITE_SUPABASE_URL` dan `VITE_SUPABASE_ANON_KEY` dari `supabase status`; jangan masukkan service-role/secret key. `npm run test:e2e` memakai Microsoft Edge lokal, membuka Vite di `127.0.0.1:5174`, dan dua sesi browser terpisah. Jalankan setelah `supabase start` serta `npm run db:reset:local`. E2E membuat notula/action **DATA DEMO** tambahan; reset lokal menghapus semua data pada database lokal proyek ini, jadi jangan jalankan reset di lingkungan dengan data yang ingin dipertahankan. Hasil UAT manual dicatat menurut [checklist UAT](docs/qa/MOM-009-UAT.md).
+Untuk menjalankan aplikasi/E2E dengan database lokal, isi `.env.local` hanya dengan `VITE_SUPABASE_URL` dan `VITE_SUPABASE_PUBLISHABLE_KEY` dari `supabase status`; jangan masukkan service-role/secret key. `npm run test:e2e` memakai Microsoft Edge lokal, membuka Vite di `127.0.0.1:5174`, dan dua sesi browser terpisah. Jalankan setelah `supabase start` serta `npm run db:reset:local`. E2E membuat notula/action **DATA DEMO** tambahan; reset lokal menghapus semua data pada database lokal proyek ini, jadi jangan jalankan reset di lingkungan dengan data yang ingin dipertahankan. Hasil UAT manual dicatat menurut [checklist UAT](docs/qa/MOM-009-UAT.md).
 
 ## Kelola pengguna MOM-010
 

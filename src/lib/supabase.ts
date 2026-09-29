@@ -6,11 +6,11 @@ export function getSupabaseClient() {
   if (client) return client
 
   const url = import.meta.env.VITE_SUPABASE_URL
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-  if (!url || !anonKey) {
-    throw new Error('Konfigurasi Supabase belum tersedia. Isi VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY di .env.local.')
+  const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY
+  if (!url || !publishableKey) {
+    throw new Error('Konfigurasi Supabase belum tersedia. Isi VITE_SUPABASE_URL dan VITE_SUPABASE_PUBLISHABLE_KEY di .env.local.')
   }
 
-  client = createClient(url, anonKey)
+  client = createClient(url, publishableKey)
   return client
 }
