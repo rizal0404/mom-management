@@ -67,6 +67,123 @@ if (!writeAttempt.error) fail('Write langsung oleh authenticated tidak ditolak.'
 const roleEscalation = await memberA.from('profiles').update({ role: 'ADMIN' }).eq('id', '22222222-2222-2222-2222-222222222222')
 if (!roleEscalation.error) fail('Member dapat menaikkan role sendiri.')
 
+// --- MOM-014 private agenda templates and clean draft instantiation ---
+const templatePayload = {
+  name: 'Ritual mingguan DATA DEMO',
+  initial_title: 'Rapat rutin DATA DEMO',
+  items: [
+    { position: 1, agenda: 'Tinjau tindak lanjut sebelumnya DATA DEMO', kind: 'NOTE' },
+    { position: 2, agenda: 'Bahas kebutuhan baru DATA DEMO', kind: 'TASK' },
+  ],
+}
+const directTemplateWrite = await memberA.from('meeting_templates').insert({
+  owner_id: '22222222-2222-2222-2222-222222222222',
+  name: 'Write langsung DATA DEMO',
+})
+if (!directTemplateWrite.error) fail('Member dapat menulis template agenda langsung melalui tabel.')
+const anonymousTemplates = await anon.from('meeting_templates').select('id')
+if (!anonymousTemplates.error) fail('Anon dapat membaca template agenda.')
+const createdTemplate = await memberA.rpc('save_meeting_template', { p_payload: templatePayload, p_expected_version: null })
+if (createdTemplate.error || !createdTemplate.data?.id || createdTemplate.data.version !== 1) fail(`Buat template RPC gagal: ${createdTemplate.error?.message ?? 'versi awal tidak valid'}`)
+const templateId = createdTemplate.data.id
+const directTemplateUpdate = await memberA.from('meeting_templates').update({ name: 'Edit langsung DATA DEMO' }).eq('id', templateId)
+if (!directTemplateUpdate.error) fail('Member dapat mengubah template agenda langsung melalui tabel.')
+const directTemplateDelete = await memberA.from('meeting_templates').delete().eq('id', templateId)
+if (!directTemplateDelete.error) fail('Member dapat menghapus template agenda langsung melalui tabel.')
+const directTemplateItemWrite = await memberA.from('meeting_template_items').insert({
+  template_id: templateId, position: 1, agenda: 'Write langsung DATA DEMO', kind: 'NOTE',
+})
+if (!directTemplateItemWrite.error) fail('Member dapat menulis item template langsung melalui tabel.')
+const [ownerTemplateRows, otherMemberTemplateRows] = await Promise.all([
+  memberA.from('meeting_templates').select('id,name,initial_title,version,meeting_template_items(position,agenda,kind)').eq('id', templateId),
+  memberB.from('meeting_templates').select('id,name').eq('id', templateId),
+])
+if (ownerTemplateRows.error || ownerTemplateRows.data?.length !== 1 || ownerTemplateRows.data[0].meeting_template_items.length !== 2) fail('Owner tidak dapat membaca template dan agenda tersimpan.')
+if (otherMemberTemplateRows.error || otherMemberTemplateRows.data?.length !== 0) fail('RLS membocorkan template pribadi kepada anggota lain.')
+const adminTemplateRows = await admin.from('meeting_templates').select('id').eq('id', templateId)
+if (adminTemplateRows.error || adminTemplateRows.data?.length !== 0) fail('RLS membocorkan template pribadi kepada ADMIN yang bukan pemilik.')
+const deniedTemplateEdit = await memberB.rpc('save_meeting_template', {
+  p_payload: { ...templatePayload, id: templateId, name: 'Edit tanpa izin DATA DEMO' },
+  p_expected_version: 1,
+})
+if (!deniedTemplateEdit.error || !deniedTemplateEdit.error.message.includes('FORBIDDEN')) fail('Anggota lain dapat mengubah template pribadi.')
+const deniedTemplateDelete = await memberB.rpc('delete_meeting_template', { p_id: templateId, p_expected_version: 1 })
+if (!deniedTemplateDelete.error || !deniedTemplateDelete.error.message.includes('FORBIDDEN')) fail('Anggota lain dapat menghapus template pribadi.')
+const deniedTemplateUse = await memberB.rpc('create_meeting_draft_from_template', { p_template_id: templateId })
+if (!deniedTemplateUse.error || !deniedTemplateUse.error.message.includes('FORBIDDEN')) fail('Anggota lain dapat membuat draf dari template pribadi.')
+const oldTemplateDraft = await memberA.rpc('create_meeting_draft_from_template', { p_template_id: templateId })
+if (oldTemplateDraft.error || oldTemplateDraft.data?.status !== 'DRAFT' || oldTemplateDraft.data?.version !== 1) fail(`Instansiasi template gagal: ${oldTemplateDraft.error?.message ?? 'draf tidak valid'}`)
+const oldDraftId = oldTemplateDraft.data.id
+const oldDraftContents = await memberA.from('meetings')
+  .select('id,title,owner_id,starts_at,location_or_link,chair_name,status,version,meeting_participants(id),meeting_items(id,position,agenda,discussion,result,kind,draft_pic_id,draft_start_date,draft_due_date)')
+  .eq('id', oldDraftId).single()
+if (oldDraftContents.error || oldDraftContents.data.title !== templatePayload.initial_title
+  || oldDraftContents.data.owner_id !== '22222222-2222-2222-2222-222222222222'
+  || oldDraftContents.data.starts_at !== null || oldDraftContents.data.location_or_link !== null
+  || oldDraftContents.data.chair_name !== null || oldDraftContents.data.status !== 'DRAFT'
+  || oldDraftContents.data.meeting_participants.length !== 0 || oldDraftContents.data.meeting_items.length !== 2
+  || oldDraftContents.data.meeting_items.some((item) => item.discussion !== null || item.result !== null
+    || item.draft_pic_id !== null || item.draft_start_date !== null || item.draft_due_date !== null)) {
+  fail('Draf hasil template menyalin data rapat/action lama atau tidak bersih.')
+}
+const oldDraftActions = await memberA.from('actions').select('id').in('source_item_id', oldDraftContents.data.meeting_items.map((item) => item.id))
+if (oldDraftActions.error || oldDraftActions.data.length !== 0) fail('Instansiasi template membuat action sebelum finalisasi.')
+const updatedTemplatePayload = {
+  id: templateId,
+  name: 'Ritual tindak lanjut DATA DEMO',
+  initial_title: null,
+  items: [{ position: 1, agenda: 'Tinjau pending matter DATA DEMO', kind: 'PENDING_MATTER' }],
+}
+const staleTemplateEdit = await memberA.rpc('save_meeting_template', { p_payload: updatedTemplatePayload, p_expected_version: null })
+if (!staleTemplateEdit.error || !staleTemplateEdit.error.message.includes('CONFLICT')) fail('Edit template dengan versi null tidak ditolak.')
+const updatedTemplate = await memberA.rpc('save_meeting_template', { p_payload: updatedTemplatePayload, p_expected_version: 1 })
+if (updatedTemplate.error || updatedTemplate.data?.version !== 2) fail(`Edit template gagal: ${updatedTemplate.error?.message ?? 'versi tidak naik'}`)
+const oldDraftAfterTemplateEdit = await memberA.from('meeting_items').select('agenda,kind').eq('meeting_id', oldDraftId).order('position')
+if (oldDraftAfterTemplateEdit.error || oldDraftAfterTemplateEdit.data.length !== 2
+  || oldDraftAfterTemplateEdit.data[0].agenda !== templatePayload.items[0].agenda
+  || oldDraftAfterTemplateEdit.data[1].kind !== 'TASK') fail('Edit template mengubah draf yang sudah dibuat.')
+const newTemplateDraft = await memberA.rpc('create_meeting_draft_from_template', { p_template_id: templateId })
+if (newTemplateDraft.error || newTemplateDraft.data?.title !== updatedTemplatePayload.name) fail('Judul fallback nama template tidak diterapkan ke draf baru.')
+const incompleteTemplateDraft = await memberA.from('meetings')
+  .select('id,title,starts_at,chair_name,status,version,meeting_items(id,position,agenda,kind,discussion,result,draft_pic_id,draft_start_date,draft_due_date)')
+  .eq('id', newTemplateDraft.data.id).single()
+if (incompleteTemplateDraft.error || incompleteTemplateDraft.data.meeting_items.length !== 1
+  || incompleteTemplateDraft.data.meeting_items[0].kind !== 'PENDING_MATTER'
+  || incompleteTemplateDraft.data.meeting_items[0].discussion !== null
+  || incompleteTemplateDraft.data.meeting_items[0].result !== null) fail('Draf baru tidak mengikuti template terbaru dengan field kosong.')
+const invalidTemplateFinalize = await memberA.rpc('finalize_meeting', { p_id: newTemplateDraft.data.id, p_expected_version: 1 })
+if (!invalidTemplateFinalize.error || !invalidTemplateFinalize.error.message.includes('VALIDATION')) fail('Finalisasi template bypass validasi notula yang berlaku.')
+const completedTemplateDraft = await memberA.rpc('save_meeting_draft', {
+  p_payload: {
+    id: newTemplateDraft.data.id,
+    title: newTemplateDraft.data.title,
+    starts_at: '2026-09-30T09:00:00+08:00',
+    location_or_link: null,
+    chair_name: 'Pimpinan DATA DEMO',
+    participants: [{ display_name_snapshot: 'Peserta DATA DEMO' }],
+    items: [{
+      position: 1,
+      agenda: updatedTemplatePayload.items[0].agenda,
+      kind: 'PENDING_MATTER',
+      draft_pic_id: '22222222-2222-2222-2222-222222222222',
+      draft_start_date: '2026-09-30',
+      draft_due_date: '2026-10-01',
+    }],
+  },
+  p_expected_version: 1,
+})
+if (completedTemplateDraft.error || completedTemplateDraft.data?.version !== 2) fail('Draf template tidak dapat dilengkapi melalui RPC draf yang berlaku.')
+const finalizedTemplateDraft = await memberA.rpc('finalize_meeting', { p_id: newTemplateDraft.data.id, p_expected_version: 2 })
+if (finalizedTemplateDraft.error || finalizedTemplateDraft.data?.action_count !== 1) fail('Finalisasi draf template tidak membuat satu action sesuai aturan yang berlaku.')
+const staleTemplateDelete = await memberA.rpc('delete_meeting_template', { p_id: templateId, p_expected_version: 1 })
+if (!staleTemplateDelete.error || !staleTemplateDelete.error.message.includes('CONFLICT')) fail('Hapus template dengan versi stale tidak ditolak.')
+const deletedTemplate = await memberA.rpc('delete_meeting_template', { p_id: templateId, p_expected_version: 2 })
+if (deletedTemplate.error) fail(`Owner gagal menghapus template: ${deletedTemplate.error.message}`)
+const afterTemplateDelete = await memberA.from('meeting_templates').select('id').eq('id', templateId)
+const retainedTemplateMeeting = await memberA.from('meetings').select('id,status').eq('id', newTemplateDraft.data.id).single()
+if (afterTemplateDelete.error || afterTemplateDelete.data.length !== 0 || retainedTemplateMeeting.error
+  || retainedTemplateMeeting.data.status !== 'FINAL') fail('Hapus template menghapus data draf/notula yang telah dibuat.')
+
 const initialDraft = {
   title: 'Draf transaksi RPC — DATA DEMO', starts_at: null, location_or_link: null, chair_name: null,
   participants: [{ display_name_snapshot: 'Peserta eksternal DATA DEMO' }],
@@ -92,10 +209,21 @@ const adminRead = await admin.from('meetings').select('id').eq('id', createdId).
 if (adminRead.error) fail('Admin tidak dapat membaca draf anggota.')
 const nullDeleteVersion = await memberA.rpc('delete_meeting_draft', { p_id: createdId, p_expected_version: null })
 if (!nullDeleteVersion.error || !nullDeleteVersion.error.message.includes('CONFLICT')) fail('Hapus draf dengan expected_version null tidak ditolak.')
+const deniedDraftDelete = await memberB.rpc('delete_meeting_draft', { p_id: createdId, p_expected_version: 2 })
+if (!deniedDraftDelete.error || !deniedDraftDelete.error.message.includes('FORBIDDEN')) fail('Member lain dapat menghapus draf owner.')
+const staleDraftDelete = await memberA.rpc('delete_meeting_draft', { p_id: createdId, p_expected_version: 1 })
+if (!staleDraftDelete.error || !staleDraftDelete.error.message.includes('CONFLICT')) fail('Hapus draf dengan versi stale tidak menghasilkan CONFLICT.')
 const deleted = await memberA.rpc('delete_meeting_draft', { p_id: createdId, p_expected_version: 2 })
 if (deleted.error) fail(`Hapus RPC draf gagal: ${deleted.error.message}`)
 const afterDelete = await memberA.from('meetings').select('id').eq('id', createdId).maybeSingle()
 if (afterDelete.error || afterDelete.data) fail('Draf yang dihapus masih terbaca owner.')
+
+const adminDraft = await memberA.rpc('save_meeting_draft', { p_payload: { ...initialDraft, title: 'Draf hapus oleh admin — DATA DEMO' }, p_expected_version: null })
+if (adminDraft.error || !adminDraft.data?.id) fail(`Draf DATA DEMO untuk hapus admin gagal dibuat: ${adminDraft.error?.message ?? 'respons tidak valid'}`)
+const adminDeletedDraft = await admin.rpc('delete_meeting_draft', { p_id: adminDraft.data.id, p_expected_version: 1 })
+if (adminDeletedDraft.error) fail(`Admin tidak dapat menghapus draf anggota: ${adminDeletedDraft.error.message}`)
+const afterAdminDelete = await memberA.from('meetings').select('id').eq('id', adminDraft.data.id).maybeSingle()
+if (afterAdminDelete.error || afterAdminDelete.data) fail('Draf yang dihapus admin masih terbaca owner.')
 
 const reorderDraft = {
   title: 'Urut ulang agenda draf — DATA DEMO', starts_at: null, location_or_link: null, chair_name: null,
@@ -379,4 +507,4 @@ const pendingDeleteVersion = (await memberA.from('actions').select('version').eq
 const adminDelete = await admin.rpc('delete_action', { p_id: pendingAction.id, p_expected_version: pendingDeleteVersion })
 if (adminDelete.error || adminDelete.data?.deleted !== true) fail('Admin gagal menghapus task anggota lain.')
 
-process.stdout.write('PASS test:db — auth/RLS, draf/finalisasi, audit/konflik, rollback INSERT, boundary dashboard 1.001 action, dan soft delete otorisasi/idempotensi/privasi.\n')
+process.stdout.write('PASS test:db — auth/RLS, draf/finalisasi, template agenda pribadi/instansiasi, audit/konflik, rollback INSERT, boundary dashboard 1.001 action, dan soft delete otorisasi/idempotensi/privasi.\n')

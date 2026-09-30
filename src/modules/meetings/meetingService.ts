@@ -4,6 +4,22 @@ export type MeetingDraft = { id?: string; title: string; starts_at: string | nul
 export type Meeting = MeetingDraft & { id: string; owner_id: string; version: number; status: 'DRAFT' | 'FINAL' }
 export type MeetingDetail = Meeting & { meeting_participants: { id: string; profile_id: string | null; display_name_snapshot: string }[]; meeting_items: { id: string; position: number; agenda: string; discussion: string | null; result: string | null; kind: MeetingDraft['items'][number]['kind']; draft_pic_id: string | null; draft_start_date: string | null; draft_due_date: string | null }[] }
 export type ActiveProfile = { id: string; display_name: string }
+export type MeetingTemplateKind = MeetingDraft['items'][number]['kind']
+export type MeetingTemplateItem = { id: string; position: number; agenda: string; kind: MeetingTemplateKind }
+export type MeetingTemplate = {
+  id: string
+  owner_id: string
+  name: string
+  initial_title: string | null
+  version: number
+  meeting_template_items: MeetingTemplateItem[]
+}
+export type MeetingTemplateDraft = {
+  id?: string
+  name: string
+  initial_title: string | null
+  items: { position: number; agenda: string; kind: MeetingTemplateKind }[]
+}
 export type MeetingFilters = { search?: string; dateFrom?: string; dateTo?: string; status?: 'DRAFT' | 'FINAL' | '' }
 export type MeetingPage = { data: Meeting[]; total: number; page: number; pageSize: number }
 
@@ -51,4 +67,44 @@ export async function finalizeMeeting(id: string, expectedVersion: number) {
   const { data, error } = await getSupabaseClient().rpc('finalize_meeting', { p_id: id, p_expected_version: expectedVersion })
   if (error) throw new Error(error.message.includes('CONFLICT') ? 'CONFLICT' : error.message.includes('VALIDATION') ? error.message.replace('VALIDATION: ', '') : 'Finalisasi gagal.')
   return data as { meeting_id: string; action_count: number }
+}
+
+function templateError(error: { message: string }, fallback: string) {
+  if (error.message.includes('CONFLICT')) return new Error('CONFLICT')
+  if (error.message.includes('VALIDATION: ')) return new Error(error.message.split('VALIDATION: ').at(-1) ?? fallback)
+  if (error.message.includes('FORBIDDEN')) return new Error('Template tidak ditemukan atau tidak dapat diakses.')
+  return new Error(fallback)
+}
+
+export async function listMeetingTemplates(): Promise<MeetingTemplate[]> {
+  const { data, error } = await getSupabaseClient().from('meeting_templates')
+    .select('id,owner_id,name,initial_title,version,meeting_template_items(id,position,agenda,kind)')
+    .order('updated_at', { ascending: false })
+  if (error) throw new Error('Template agenda tidak dapat dimuat.')
+  return (data ?? []) as MeetingTemplate[]
+}
+
+export async function saveMeetingTemplate(template: MeetingTemplateDraft, expectedVersion?: number) {
+  const { data, error } = await getSupabaseClient().rpc('save_meeting_template', {
+    p_payload: template,
+    p_expected_version: expectedVersion ?? null,
+  })
+  if (error) throw templateError(error, 'Template agenda gagal disimpan.')
+  return data as Omit<MeetingTemplate, 'meeting_template_items'>
+}
+
+export async function deleteMeetingTemplate(id: string, expectedVersion: number) {
+  const { error } = await getSupabaseClient().rpc('delete_meeting_template', {
+    p_id: id,
+    p_expected_version: expectedVersion,
+  })
+  if (error) throw templateError(error, 'Template agenda gagal dihapus.')
+}
+
+export async function createMeetingDraftFromTemplate(templateId: string) {
+  const { data, error } = await getSupabaseClient().rpc('create_meeting_draft_from_template', {
+    p_template_id: templateId,
+  })
+  if (error) throw templateError(error, 'Draf rapat dari template gagal dibuat.')
+  return data as Meeting
 }

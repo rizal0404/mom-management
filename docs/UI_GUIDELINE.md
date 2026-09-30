@@ -83,6 +83,20 @@ Di detail tindak lanjut, tampilkan aktor, waktu, dan catatan, lalu rincian nilai
 
 Pada daftar evidence, PDF/JPG/JPEG/PNG menyediakan aksi **Lihat** di samping **Unduh**. Viewer terbuka di modal dengan nama file, status memuat/gagal, tutup yang jelas, dan kontrol zoom keluar/masuk serta kembali ke 100%. Modal mendukung Escape dan klik backdrop; viewer memakai byte yang diperoleh lewat sesi terautentikasi. WebP, DOCX, dan XLSX tetap hanya menyediakan unduh. Pada ponsel, toolbar boleh membungkus tanpa membuat halaman melebar.
 
+## Cetak notula — MOM-012
+
+Detail DRAFT tersimpan dan FINAL menyediakan tombol **Cetak / Simpan PDF** di header. Tombol membuka dialog cetak browser; pemilihan printer atau **Save as PDF** tetap dilakukan oleh pengguna. Gunakan lembar A4 dengan metadata rapat, peserta, agenda berurutan, pembahasan, hasil, dan kesepakatan PIC/jadwal yang diambil dari data tersimpan. Label **DRAF** selalu terlihat pada cetakan draf. Tindak lanjut terkini tidak dicampurkan ke kesepakatan.
+
+Saat form draf kotor, arahkan pengguna untuk menyimpan atau membatalkan perubahan sebelum mencetak; sediakan aksi batalkan perubahan yang memulihkan snapshot tersimpan. Pintasan cetak browser hanya menampilkan pesan pengarah dan tidak menampilkan perubahan yang belum tersimpan. Hasil cetak meniadakan shell navigasi, editor, dialog, tombol, dan kontrol evidence. Jangan menyertakan byte atau tautan lampiran privat. Pastikan judul, URL/lokasi, nama, dan teks agenda panjang membungkus serta dapat mengalir ke beberapa halaman tanpa pemotongan; uji preview A4 untuk tanpa action dan rapat panjang.
+
+## Template agenda pribadi — MOM-014
+
+- Halaman **Template agenda** dibuka dari halaman Rapat dan menampilkan daftar pribadi, editor template, serta tombol **Gunakan template**. Beri nama, judul awal opsional, urutan agenda, dan jenis item; jangan tampilkan field peserta, pembahasan, hasil, PIC, tanggal, lampiran, atau status.
+- Tampilkan jumlah/urutan agenda dan jelaskan bahwa TASK/Pending matter pada template tidak membawa PIC atau tanggal. Jika judul awal kosong, beri tahu pengguna bahwa nama template menjadi judul draf awal.
+- Beri aksi Simpan, Batalkan perubahan, Edit, Hapus dengan konfirmasi, dan Gunakan template. Gunakan validasi/input yang eksplisit; saat versi berubah, pertahankan masukan dan tawarkan muat ulang. Status loading, kosong, gagal/retry, menyimpan, tersimpan, dan konflik harus terlihat.
+- Setelah dipakai, arahkan ke editor DRAFT baru dan tampilkan hanya struktur agenda serta judul awal/nama template. Field rapat lainnya kosong. Finalisasi mengikuti dialog dan validasi notula yang sudah ada.
+- Layout desktop memakai panel daftar dan editor yang bersebelahan; di layar sempit susun vertikal tanpa overflow. Semua aksi dapat dipakai dengan keyboard dan focus ring terlihat.
+
 ## Detail notula FINAL — 24 September 2026
 
 Susun detail FINAL sebagai halaman dokumen: breadcrumb, judul dan badge final, ringkasan waktu/pimpinan/lokasi, peserta ber-avatar inisial, lalu agenda bernomor dengan pembahasan, hasil, dan baris PIC/jadwal bila item dapat ditindaklanjuti. Panel evidence mempertahankan kontrol unggah/lihat/unduh yang sudah berfungsi. Akhiri dengan keterangan notula tetap dan tautan tracker yang memfilter rapat asal. Jangan tampilkan kontrol editor draf atau tombol ekspor/dropzone yang belum tersedia. Tunggu data detail selesai dimuat sebelum memilih cabang FINAL atau DRAFT; tampilkan keadaan memuat dan gagal yang jelas.
@@ -92,3 +106,10 @@ Kartu dan aksen biru/navy berlaku lokal di detail, sementara shell aplikasi memp
 ### Form DRAFT — 24 September 2026
 
 Halaman buat/edit DRAFT mengikuti hierarki detail: breadcrumb, judul dan status Draf untuk record tersimpan, lalu kartu Informasi Rapat, Peserta Rapat, dan Agenda & Hasil Rapat. Informasi memakai grid dua kolom di layar lebar; judul/lokasi penuh lebar. Peserta memakai baris nama dengan inisial dan aksi hapus; agenda memakai nomor, pilihan jenis, pembahasan, dan hasil. PIC/mulai/jatuh tempo hanya muncul untuk TASK/PENDING_MATTER. Simpan, finalisasi, hapus, indikator status, validasi, dan evidence harus tetap berfungsi melalui service/RPC yang ada. Pada ponsel, form dan action bar menumpuk tanpa overflow; jangan mengubah nilai tanggal kosong atau aturan penyimpanan demi tampilan.
+
+## Akun dan pemulihan kata sandi — MOM-015
+
+- Login menyediakan tautan **Lupa kata sandi?** menuju halaman permintaan pemulihan. Halaman meminta email, menampilkan status mengirim, pesan sukses generik yang tidak memastikan akun ada, serta error pengiriman dengan opsi mencoba lagi.
+- Area akun menyediakan **Akun dan kata sandi**. Form perubahan memiliki label kata sandi baru dan konfirmasi, validasi yang jelas, indikator proses, sukses/error, dan tidak menampilkan kembali nilai sandi setelah berhasil.
+- Callback `/account/password` hanya menampilkan form dengan sesi Auth dan profil aktif. Saat sesi tidak ada, tampilkan pesan bahwa tautan invalid/kedaluwarsa/terpakai dan tautan untuk meminta ulang. Akun nonaktif mendapat keterangan untuk menghubungi administrator tanpa melihat data domain.
+- Gunakan `autocomplete="new-password"`, target sentuh minimal 44 px, fokus keyboard yang jelas, serta layout kartu yang sama dengan halaman login. Jangan mencetak, menyalin ke URL, atau menyimpan token/kata sandi ke log atau penyimpanan aplikasi.

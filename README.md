@@ -59,15 +59,23 @@ Untuk menjalankan aplikasi/E2E dengan database lokal, isi `.env.local` hanya den
 
 Administrator aktif dapat membuka menu **Kelola pengguna** (`/users`) untuk membuat akun, mengubah nama/peran, serta mengaktifkan atau menonaktifkan pengguna. Pendaftaran publik tetap ditutup. Menu dan route menolak member; Edge Function `manage-users` memeriksa ulang JWT dan peran admin sebelum menggunakan kunci administratif di server.
 
-- Saat membuat akun, admin menetapkan kata sandi sementara minimal 12 karakter dan menyampaikannya melalui saluran aman. Kata sandi tidak disimpan atau ditampilkan kembali oleh aplikasi. Fitur reset kata sandi belum termasuk MOM-010.
+- Saat membuat akun, admin menetapkan kata sandi sementara minimal 12 karakter dan menyampaikannya melalui saluran aman. Kata sandi tidak disimpan atau ditampilkan kembali oleh aplikasi. MOM-010 hanya mencakup provisioning; pemulihan mandiri anggota ditambahkan dalam MOM-015.
 - Akun tidak dihapus dari menu ini agar notula, PIC, dan riwayat tetap memiliki referensi. Administrator tidak dapat mengubah peran/status dirinya sendiri atau menonaktifkan administrator aktif terakhir.
 - Untuk menguji browser lengkap, `npm run test:e2e` memulai Edge Function lokal. Jalankan setelah `supabase start` dan `npm run db:reset:local`. Untuk uji fungsi saja, jalankan `supabase functions serve manage-users` pada terminal terpisah lalu `npm run test:users`.
 - Setelah mengubah `supabase/config.toml`, hentikan dan mulai ulang stack lokal sebelum mengetes auth. Reset database saja tidak memuat ulang konfigurasi Auth.
+
+## Ganti kata sandi dan pemulihan akun MOM-015
+
+Anggota aktif dapat mengganti kata sandi dari **Akun dan kata sandi** di sidebar. Di halaman masuk, pilih **Lupa kata sandi?** untuk meminta email pemulihan. Aplikasi memakai Supabase Auth `resetPasswordForEmail` dan `updateUser`; respons permintaan selalu generik agar tidak mengungkap email yang terdaftar. Untuk lokal, Supabase CLI menangkap email di Inbucket pada `http://127.0.0.1:54324`. Callback lokal dibatasi ke URL aplikasi Vite pada port 5173/5174 melalui `supabase/config.toml`; restart stack setelah perubahan konfigurasi.
+
+Untuk Auth hosted, atur Site URL ke origin aplikasi dan daftarkan URL callback produksi yang tepat, `https://<origin-aplikasi>/account/password`, di Authentication → URL Configuration. Cocokkan origin aplikasi yang benar-benar digunakan; jangan memasukkan URL tujuan dari parameter pengguna atau memakai wildcard luas. Ikuti [panduan redirect Auth Supabase](https://supabase.com/docs/guides/auth/redirect-urls) dan [panduan password Supabase](https://supabase.com/docs/guides/auth/passwords). Alur email target belum diverifikasi pada project cloud; gunakan SMTP sandbox/mailbox uji sebelum mengaktifkan layanan untuk anggota.
 
 ## Route aplikasi
 
 - `/` — Dashboard
 - `/login` — Login
+- `/account/recovery` — Permintaan tautan pemulihan akun
+- `/account/password` — Ganti kata sandi atau terima tautan pemulihan
 - `/meetings`, `/meetings/new`, `/meetings/:id` — Notula
 - `/actions`, `/actions/:id` — Tracker, timeline dan detail tindak lanjut
 - `/users` — Kelola pengguna, khusus administrator aktif

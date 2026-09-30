@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 import { ArrowRight, CalendarDays, CheckCircle2, ChevronRight, Home, Info, ListChecks, MapPin, UserRound, Users } from 'lucide-react'
 import { EvidencePanel } from '../evidence/EvidencePanel'
 import type { ActiveProfile, MeetingDraft } from './meetingService'
+import { MeetingPrintDocument, PrintMeetingButton } from './MeetingPrintDocument'
 
 type Participant = MeetingDraft['participants'][number]
 type Item = MeetingDraft['items'][number]
@@ -16,6 +17,7 @@ type Props = {
   items: Item[]
   profiles: ActiveProfile[]
   canUploadEvidence: boolean
+  onPrint: () => void
 }
 
 const itemKindLabels: Record<Item['kind'], string> = {
@@ -43,12 +45,13 @@ function participantInitials(name: string) {
   return name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toLocaleUpperCase('id-ID')
 }
 
-export function FinalMeetingView({ id, title, startsAt, chairName, locationOrLink, people, items, profiles, canUploadEvidence }: Props) {
+export function FinalMeetingView({ id, title, startsAt, chairName, locationOrLink, people, items, profiles, canUploadEvidence, onPrint }: Props) {
   const [meetingDate, meetingTime] = startsAt.split('T')
   const timeLabel = meetingTime?.slice(0, 5).replace(':', '.')
   const attendees = people.filter((entry) => entry.display_name_snapshot.trim())
 
   return <section className="meeting-detail meeting-detail--final" aria-labelledby="meeting-detail-title">
+    <MeetingPrintDocument title={title} startsAt={startsAt} chairName={chairName} locationOrLink={locationOrLink} people={people} items={items} profiles={profiles} status="FINAL" />
     <nav className="meeting-detail__breadcrumb" aria-label="Breadcrumb">
       <Link to="/meetings"><Home size={15} aria-hidden="true" /><span>Notula Rapat</span></Link>
       <ChevronRight size={14} aria-hidden="true" />
@@ -63,6 +66,7 @@ export function FinalMeetingView({ id, title, startsAt, chairName, locationOrLin
         </div>
         <p>Dokumentasi pembahasan dan hasil rapat.</p>
       </div>
+      <PrintMeetingButton onClick={onPrint} />
     </header>
 
     <section className="meeting-detail__summary" aria-label="Ringkasan rapat">

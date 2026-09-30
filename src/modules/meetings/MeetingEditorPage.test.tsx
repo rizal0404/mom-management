@@ -59,4 +59,30 @@ describe('penyimpanan draf notula', () => {
     await waitFor(() => expect(screen.getByText('Tersimpan ✓')).toBeInTheDocument())
     expect(saveMeetingDraft).toHaveBeenCalledTimes(2)
   })
+
+  it('menahan cetak saat draf kotor dan memungkinkan membatalkan perubahan sebelum mencetak', async () => {
+    const print = vi.fn()
+    const confirm = vi.fn(() => true)
+    vi.stubGlobal('print', print)
+    vi.stubGlobal('confirm', confirm)
+
+    render(<MemoryRouter initialEntries={['/meetings/fixture']}>
+      <Routes><Route path="/meetings/:id" element={<MeetingEditorPage />} /></Routes>
+    </MemoryRouter>)
+
+    expect(await screen.findByDisplayValue('Rapat DATA DEMO')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Judul rapat'), { target: { value: 'Perubahan belum tersimpan' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Cetak / Simpan PDF' }))
+
+    expect(print).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('Simpan draf atau batalkan perubahan sebelum mencetak.')
+    expect(screen.getByRole('button', { name: 'Simpan draf' })).toHaveFocus()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Batalkan perubahan' }))
+    expect(confirm).toHaveBeenCalledOnce()
+    expect(screen.getByLabelText('Judul rapat')).toHaveValue('Rapat DATA DEMO')
+    fireEvent.click(screen.getByRole('button', { name: 'Cetak / Simpan PDF' }))
+    expect(print).toHaveBeenCalledOnce()
+    vi.unstubAllGlobals()
+  })
 })

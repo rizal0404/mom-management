@@ -51,6 +51,7 @@ export function MeetingsPage() {
   const load = () => {
     setLoading(true)
     setError(null)
+    setDeleteError(null)
     void listMeetings(filters, page).then((result) => { setMeetings(result.data); setTotal(result.total) }).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : 'Gagal memuat notula.')).finally(() => setLoading(false))
   }
 
@@ -81,7 +82,10 @@ export function MeetingsPage() {
   return <section className="meetings-page" aria-labelledby="meetings-title">
     <div className="section-heading">
       <div><p className="eyebrow">Notula</p><h2 id="meetings-title">Rapat</h2><p className="section-description">Simpan draf, lengkapi hasil rapat, lalu finalkan tindak lanjut yang disepakati.</p></div>
-      <Link className="button button--primary section-heading__action" to="/meetings/new"><Plus size={18} aria-hidden="true" /> Buat rapat</Link>
+      <div className="section-heading__actions">
+        <Link className="button button--quiet" to="/meeting-templates"><ClipboardList size={17} aria-hidden="true" /> Template agenda</Link>
+        <Link className="button button--primary section-heading__action" to="/meetings/new"><Plus size={18} aria-hidden="true" /> Buat rapat</Link>
+      </div>
     </div>
     <div className="filter-bar meeting-filter-bar" aria-label="Filter notula">
       <label>Judul<input aria-label="Cari judul rapat" value={filters.search} onChange={(event) => setFilter('search', event.target.value)} placeholder="Cari judul rapat" /></label>

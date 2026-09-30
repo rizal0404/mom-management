@@ -3,24 +3,179 @@ import { expect, test, type Page } from '@playwright/test'
 const password = 'DemoPass123!'
 const label = `E2E DATA DEMO ${Date.now()}`
 
-async function login(page: Page, email: string) {
+async function login(page: Page, email: string, userPassword = password) {
   await page.goto('/login')
   await page.getByLabel('Email').fill(email)
-  await page.getByLabel('Kata sandi').fill(password)
+  await page.getByLabel('Kata sandi').fill(userPassword)
   await page.getByRole('button', { name: 'Masuk' }).click()
   await expect(page).not.toHaveURL(/\/login$/)
 }
 
+async function verifyPrintButton(page: Page) {
+  const button = page.getByRole('button', { name: 'Cetak / Simpan PDF' })
+  await expect(button).toBeVisible()
+  await page.evaluate(() => {
+    window.print = () => { document.documentElement.dataset.printCalled = 'true' }
+  })
+  await button.click()
+  await expect(page.locator('html')).toHaveAttribute('data-print-called', 'true')
+}
+
+function witaDate(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Makassar', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(date)
+  const values = Object.fromEntries(parts.filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]))
+  return `${values.year}-${values.month}-${values.day}`
+}
+
+function shiftDate(dateOnly: string, days: number) {
+  const date = new Date(`${dateOnly}T00:00:00Z`)
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
+async function summaryCount(page: Page, label: RegExp) {
+  const card = page.getByRole('link', { name: label })
+  await expect(card.locator('strong')).toHaveText(/^\d+$/)
+  return Number(await card.locator('strong').innerText())
+}
+
+test('MOM-013 pintasan personal mengikuti PIC sesi dan berganti pada tengah malam WITA', async ({ browser }) => {
+  const suffix = Date.now()
+  const password = 'TemporaryPass123!'
+  const picAName = `MOM-013 PIC A ${suffix}`
+  const picBName = `MOM-013 PIC B ${suffix}`
+  const picAEmail = `mom013-a-${suffix}@mom.local`
+  const picBEmail = `mom013-b-${suffix}@mom.local`
+  const label = `MOM-013 DATA DEMO ${suffix}`
+  const today = witaDate()
+  const adminContext = await browser.newContext({ timezoneId: 'Asia/Makassar' })
+  const memberContext = await browser.newContext({ timezoneId: 'Asia/Makassar' })
+  const adminPage = await adminContext.newPage()
+  const page = await memberContext.newPage()
+  let createdUsers = false
+  try {
+    await login(adminPage, 'admin.demo@mom.local')
+    await adminPage.goto('/users')
+    for (const [name, email] of [[picAName, picAEmail], [picBName, picBEmail]]) {
+      await adminPage.getByLabel('Nama pengguna baru').fill(name)
+      await adminPage.getByLabel('Email pengguna baru').fill(email)
+      await adminPage.getByLabel('Kata sandi sementara').fill(password)
+      await adminPage.getByLabel('Peran pengguna baru').selectOption('MEMBER')
+      await adminPage.getByRole('button', { name: 'Buat akun' }).click()
+      await expect(adminPage.getByRole('status')).toContainText('Akun dibuat')
+      createdUsers = true
+      await expect(adminPage.getByRole('form', { name: `Kelola ${name}` })).toBeVisible()
+    }
+
+    // WITA midnight is 16:00 UTC. Freeze just before it so the same date stays active
+    // while the fixture is entered, then advance across the boundary below.
+    await page.clock.pauseAt(new Date(`${today}T15:59:58.000Z`))
+    await login(page, picAEmail, password)
+    await page.goto('/meetings/new')
+    await page.getByLabel('Judul rapat').fill(label)
+    await page.getByLabel('Waktu rapat').fill(`${today}T09:00`)
+    await page.getByLabel('Pimpinan rapat').fill('Ketua MOM-013 DATA DEMO')
+    await page.getByLabel('Peserta 1').fill('Peserta MOM-013 DATA DEMO')
+    const fillTask = async (index: number, title: string, pic: string, startDate: string, dueDate: string) => {
+      const item = page.getByRole('group', { name: `Agenda ${index}` })
+      await item.getByLabel('Agenda').fill(title)
+      await item.getByLabel('Jenis').selectOption('TASK')
+      await item.getByLabel('Hasil rapat').fill(`Hasil ${title}`)
+      await item.getByLabel('PIC').selectOption({ label: pic })
+      await item.getByLabel('Mulai').fill(startDate)
+      await item.getByLabel('Jatuh tempo').fill(dueDate)
+    }
+    await fillTask(1, `${label} hari ini`, picAName, today, today)
+    await page.getByRole('button', { name: 'Tambah agenda' }).click()
+    await fillTask(2, `${label} +8 hari`, picAName, today, shiftDate(today, 8))
+    await page.getByRole('button', { name: 'Tambah agenda' }).click()
+    await fillTask(3, `${label} PIC B terlambat`, picBName, shiftDate(today, -1), shiftDate(today, -1))
+    await page.getByRole('button', { name: 'Simpan draf' }).click()
+    await expect(page).toHaveURL(/\/meetings\/[0-9a-f-]+$/)
+    await page.getByRole('button', { name: 'Finalisasi' }).click()
+    await page.getByRole('button', { name: 'Ya, finalisasi' }).click()
+    await expect(page.getByText('Final', { exact: true })).toBeVisible()
+
+    await page.goto('/actions?preset=mine')
+    await expect(page.getByRole('link', { name: `${label} hari ini`, exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: `${label} +8 hari`, exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: `${label} PIC B terlambat`, exact: true })).toHaveCount(0)
+    expect(await summaryCount(page, /Tugas Saya/)).toBe(2)
+    expect(await summaryCount(page, /Jatuh tempo hari ini/)).toBe(1)
+    expect(await summaryCount(page, /7 hari ke depan/)).toBe(1)
+    expect(await summaryCount(page, /Terlambat/)).toBe(0)
+
+    await page.getByRole('link', { name: /Jatuh tempo hari ini/ }).click()
+    await expect(page).toHaveURL(/\/actions\?preset=today$/)
+    await expect(page.getByRole('link', { name: `${label} hari ini`, exact: true })).toBeVisible()
+    await page.getByRole('link', { name: `${label} hari ini`, exact: true }).click()
+    await expect(page).toHaveURL(/\/actions\/[0-9a-f-]+$/)
+    await expect(page.getByLabel('Deadline')).toHaveValue(today)
+
+    await page.clock.fastForward(3000)
+    await page.goto('/actions?preset=today')
+    await expect(page.getByRole('link', { name: `${label} hari ini`, exact: true })).toHaveCount(0)
+    expect(await summaryCount(page, /Jatuh tempo hari ini/)).toBe(0)
+    await page.getByRole('link', { name: /Terlambat/ }).click()
+    await expect(page).toHaveURL(/\/actions\?preset=overdue$/)
+    await expect(page.getByRole('link', { name: `${label} hari ini`, exact: true })).toBeVisible()
+    await page.getByRole('link', { name: /7 hari ke depan/ }).click()
+    await expect(page).toHaveURL(/\/actions\?preset=next7$/)
+    await expect(page.getByRole('link', { name: `${label} +8 hari`, exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: `${label} hari ini`, exact: true })).toHaveCount(0)
+
+    await page.getByRole('button', { name: 'Keluar' }).click()
+    await expect(page).toHaveURL(/\/login$/)
+    await login(page, picBEmail, password)
+    await page.goto('/actions?preset=mine')
+    await expect(page).toHaveURL(/\/actions\?preset=mine$/)
+    await expect(page.getByRole('link', { name: `${label} PIC B terlambat`, exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: `${label} hari ini`, exact: true })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: `${label} +8 hari`, exact: true })).toHaveCount(0)
+    expect(await summaryCount(page, /Tugas Saya/)).toBe(1)
+    expect(await summaryCount(page, /Jatuh tempo hari ini/)).toBe(0)
+    expect(await summaryCount(page, /7 hari ke depan/)).toBe(0)
+    expect(await summaryCount(page, /Terlambat/)).toBe(1)
+
+    await page.getByRole('link', { name: `${label} PIC B terlambat`, exact: true }).click()
+    await expect(page).toHaveURL(/\/actions\/[0-9a-f-]+$/)
+    await page.goto('/actions?preset=mine')
+    await page.getByText('Filter', { exact: true }).click()
+    await page.getByRole('button', { name: 'Reset filter' }).click()
+    await expect(page).toHaveURL(/\/actions$/)
+    await expect(page.getByRole('link', { name: `${label} PIC B terlambat`, exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: `${label} hari ini`, exact: true })).toBeVisible()
+  } finally {
+    await memberContext.close()
+    if (createdUsers) {
+      for (const name of [picAName, picBName]) {
+        const form = adminPage.getByRole('form', { name: `Kelola ${name}` })
+        if (await form.count()) {
+          await form.getByLabel('Status akses').selectOption('false')
+          await form.getByRole('button', { name: 'Simpan perubahan' }).click()
+          await expect(adminPage.getByRole('status')).toContainText('Data pengguna diperbarui')
+        }
+      }
+    }
+    await adminContext.close()
+  }
+})
+
 test('A dan B: draf privat, finalisasi, tindak lanjut PIC dan audit setelah refresh', async ({ browser }) => {
   const a = await browser.newContext({ timezoneId: 'Asia/Makassar' })
   const b = await browser.newContext({ timezoneId: 'Asia/Makassar' })
+  const admin = await browser.newContext({ timezoneId: 'Asia/Makassar' })
   const aPage = await a.newPage()
   const bPage = await b.newPage()
+  const adminPage = await admin.newPage()
   try {
     await aPage.goto('/meetings')
     await expect(aPage).toHaveURL(/\/login$/)
     await login(aPage, 'anggota-a.demo@mom.local')
     await login(bPage, 'anggota-b.demo@mom.local')
+    await login(adminPage, 'admin.demo@mom.local')
     await aPage.goto('/meetings/new')
     await aPage.getByLabel('Judul rapat').fill(label)
     await aPage.getByLabel('Waktu rapat').fill('2026-09-22T09:00')
@@ -47,13 +202,19 @@ test('A dan B: draf privat, finalisasi, tindak lanjut PIC dan audit setelah refr
     const meetingPath = new URL(aPage.url()).pathname
     await aPage.reload()
     await expect(aPage.getByLabel('Judul rapat')).toHaveValue(label)
+    await verifyPrintButton(aPage)
+    await adminPage.goto(meetingPath)
+    await expect(adminPage.getByLabel('Judul rapat')).toHaveValue(label)
+    await verifyPrintButton(adminPage)
     await bPage.goto(meetingPath)
     await expect(bPage.getByRole('alert')).toContainText('tidak dapat diakses')
+    await expect(bPage.getByRole('button', { name: 'Cetak / Simpan PDF' })).toHaveCount(0)
     await aPage.getByRole('button', { name: 'Finalisasi' }).click()
     await aPage.getByRole('button', { name: 'Ya, finalisasi' }).click()
     await expect(aPage.getByText('Final', { exact: true })).toBeVisible()
     await bPage.reload()
     await expect(bPage.getByRole('heading', { name: label, exact: true })).toBeVisible()
+    await verifyPrintButton(bPage)
     await bPage.goto(`/actions?search=${encodeURIComponent(label)}`)
     await expect(bPage.locator('.result-count')).toContainText('2 item')
     await expect(bPage.getByRole('link', { name: `${label} task`, exact: true })).toBeVisible()
@@ -80,6 +241,7 @@ test('A dan B: draf privat, finalisasi, tindak lanjut PIC dan audit setelah refr
   } finally {
     await a.close()
     await b.close()
+    await admin.close()
   }
 })
 

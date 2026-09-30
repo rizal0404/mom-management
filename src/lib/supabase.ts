@@ -11,6 +11,6 @@ export function getSupabaseClient() {
     throw new Error('Konfigurasi Supabase belum tersedia. Isi VITE_SUPABASE_URL dan VITE_SUPABASE_PUBLISHABLE_KEY di .env.local.')
   }
 
-  client = createClient(url, publishableKey)
+  client = createClient(url, publishableKey, { auth: { flowType: 'pkce' } })
   return client
 }

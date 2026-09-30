@@ -81,7 +81,7 @@ Gate teknis: lint, typecheck, unit, DB integration, build, E2E, browser visual. 
 
 ## 5. Penambahan modul berikutnya
 
-Rencana lanjutan yang disusun 29 September 2026 tersedia di [Rencana pengembangan MOM Task Management](docs/DEVELOPMENT_ROADMAP.md). Pengguna memilih prioritas otomatisasi rapat: template, rapat lanjutan dan bantuan AI. Dokumen memetakan penutupan validasi MOM-004/005/006/008/009/011, lalu usulan MOM-012–022 dengan prioritas MOM-014 → MOM-018 → MOM-021, transkripsi audio sesudah evaluasi AI, serta fitur pendukung dan kesiapan operasi. Semua task baru masih usulan dan belum dimulai; lingkup aktif MVP di atas tetap berlaku sampai task pengembangan dipilih.
+Rencana lanjutan yang disusun 29 September 2026 tersedia di [Rencana pengembangan MOM Task Management](docs/DEVELOPMENT_ROADMAP.md). Pengguna memilih prioritas otomatisasi rapat: template, rapat lanjutan dan bantuan AI. Dokumen memetakan penutupan validasi MOM-004/005/006/008/009/011, lalu MOM-012–022 dengan prioritas otomatisasi MOM-014 → MOM-018 → MOM-021, transkripsi audio sesudah evaluasi AI, serta fitur pendukung dan kesiapan operasi. MOM-012–015 dimulai atas permintaan langsung pengguna walau dependensi teknis masing-masing belum seluruhnya DONE; status gate prasyarat tetap tercatat. Lingkup MVP di atas tetap berlaku.
 
 Task dokumentasi DOC-002 bergantung pada DOC-001: menghasilkan baseline, prioritas, dependensi, acceptance criteria, estimasi bersyarat, serta urutan pelaksanaan. Status dan pemeriksaan dokumennya dicatat di TASK_PROGRESS.
 

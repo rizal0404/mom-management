@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { NavLink, Outlet, useBlocker, useLocation } from 'react-router'
 import {
   ClipboardList,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -22,9 +23,11 @@ const navigation = [
 const pageTitles: Record<string, string> = {
   '/': 'Dashboard',
   '/meetings': 'Rapat',
+  '/meeting-templates': 'Template agenda',
   '/meetings/new': 'Buat draf rapat',
   '/actions': 'Tindak lanjut',
   '/users': 'Kelola pengguna',
+  '/account/password': 'Akun dan kata sandi',
   '/login': 'Login',
 }
 
@@ -113,6 +116,16 @@ export function AppShell() {
               <span>{profile?.role === 'ADMIN' ? 'Administrator' : 'Anggota aktif'}</span>
             </div>
           </div>
+          <NavLink
+            aria-label="Akun dan kata sandi"
+            className={({ isActive }) => `nav-link nav-link--muted ${isActive ? 'nav-link--active' : ''}`}
+            onClick={() => setIsSidebarOpen(false)}
+            title="Akun dan kata sandi"
+            to="/account/password"
+          >
+            <KeyRound aria-hidden="true" size={18} />
+            <span>Akun dan kata sandi</span>
+          </NavLink>
           <button className="nav-link nav-link--muted nav-link--button" onClick={() => { if (isDirty) setLogoutPending(true); else void logout() }} type="button">
             <LogOut aria-hidden="true" size={18} />
             <span>Keluar</span>
@@ -154,7 +167,7 @@ export function AppShell() {
         <div className="modal-backdrop" onClick={cancelLeave}>
           <div className="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="unsaved-changes-title" onClick={(event) => event.stopPropagation()}>
             <h3 id="unsaved-changes-title">Perubahan belum disimpan</h3>
-            <p>Anda memiliki perubahan draf yang belum disimpan. Tinggalkan halaman tanpa menyimpan?</p>
+            <p>Anda memiliki perubahan yang belum disimpan. Tinggalkan halaman tanpa menyimpan?</p>
             <div className="modal-actions">
               <button className="button button--quiet" type="button" onClick={cancelLeave}>Batal</button>
               <button className="button button--primary" type="button" onClick={leaveWithoutSaving}>Tinggalkan tanpa menyimpan</button>

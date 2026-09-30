@@ -1,4 +1,5 @@
 import { getSupabaseClient } from '../../lib/supabase'
+import { addDays, getWitaDate } from '../../lib/witaDate'
 
 export const actionStatuses = ['OPEN', 'IN_PROGRESS', 'BLOCKED', 'DONE', 'CANCELLED'] as const
 export type ActionStatus = typeof actionStatuses[number]
@@ -54,6 +55,13 @@ export type PaginatedResult<T> = {
   pageSize: number
 }
 
+export type PersonalActionSummary = {
+  mine: number
+  dueToday: number
+  next7Days: number
+  overdue: number
+}
+
 const PAGE_SIZE = 25
 
 type ActionRow = Omit<ActionRecord, 'pic_name' | 'meeting_id' | 'meeting_title' | 'source_agenda' | 'owner_id'>
@@ -67,8 +75,8 @@ function applyFilters(query: any, filters: ActionFilters) {
   if (filters.picId) q = q.eq('pic_id', filters.picId)
   if (filters.dueFrom) q = q.gte('due_date', filters.dueFrom)
   if (filters.dueTo) q = q.lte('due_date', filters.dueTo)
-  if (filters.active) q = q.not('status', 'in', '(DONE,CANCELLED)')
-  if (filters.overdue) q = q.lt('due_date', new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' })).not('status', 'in', '(DONE,CANCELLED)')
+  if (filters.active || filters.overdue) q = q.not('status', 'in', '(DONE,CANCELLED)')
+  if (filters.overdue) q = q.lt('due_date', getWitaDate())
   return q
 }
 
@@ -123,12 +131,6 @@ export async function listActions(filters: ActionFilters = {}, page = 1, pageSiz
   return { data, total, page, pageSize }
 }
 
-function addDays(dateOnly: string, days: number) {
-  const date = new Date(`${dateOnly}T00:00:00Z`)
-  date.setUTCDate(date.getUTCDate() + days)
-  return date.toISOString().slice(0, 10)
-}
-
 export async function listTimelineActions(filters: ActionFilters = {}, weekStart: string, page = 1, pageSize = PAGE_SIZE): Promise<PaginatedResult<ActionRecord>> {
   const meetingItemIds = await getMeetingItemIds(filters.meetingId)
   if (meetingItemIds && meetingItemIds.length === 0) return { data: [], total: 0, page, pageSize }
@@ -144,6 +146,30 @@ export async function listTimelineActions(filters: ActionFilters = {}, weekStart
   const rows = data as ActionRow[]
   const hydrated = await hydrateActions(rows)
   return { data: hydrated, total: (count ?? 0) as number, page, pageSize }
+}
+
+async function countPersonalActions(picId: string, range: { from?: string; to?: string; before?: string } = {}) {
+  let query = getSupabaseClient().from('actions')
+    .select('id', { count: 'exact', head: true })
+    .is('deleted_at', null)
+    .eq('pic_id', picId)
+    .not('status', 'in', '(DONE,CANCELLED)')
+  if (range.from) query = query.gte('due_date', range.from)
+  if (range.to) query = query.lte('due_date', range.to)
+  if (range.before) query = query.lt('due_date', range.before)
+  const { count, error } = await query
+  if (error) throw new Error('Ringkasan tugas pribadi tidak dapat dimuat.')
+  return count ?? 0
+}
+
+export async function getPersonalActionSummary(picId: string, today = getWitaDate()): Promise<PersonalActionSummary> {
+  const [mine, dueToday, next7Days, overdue] = await Promise.all([
+    countPersonalActions(picId),
+    countPersonalActions(picId, { from: today, to: today }),
+    countPersonalActions(picId, { from: today, to: addDays(today, 7) }),
+    countPersonalActions(picId, { before: today }),
+  ])
+  return { mine, dueToday, next7Days, overdue }
 }
 
 export async function getAction(id: string) {

@@ -4,6 +4,41 @@ Catat perubahan yang benar-benar sudah dibuat. Rencana masa depan tetap di IMPLE
 
 ## [Unreleased]
 
+### Added — 2026-09-30, MOM-015 ganti kata sandi dan pemulihan akun (IN_PROGRESS)
+
+- Menambahkan halaman **Akun dan kata sandi**, form update sandi via Supabase Auth, permintaan reset dari login, dan callback `/account/password`. Permintaan menampilkan pesan sukses generik dan error pengiriman tanpa membocorkan alamat email; callback hanya menampilkan form jika Auth memulihkan sesi dan profil aktif.
+- URL callback dibangun tetap dari origin aplikasi, memakai PKCE, dan tidak menerima tujuan redirect dari input. `supabase/config.toml` mengizinkan URL lokal exact pada Vite port 5173/5174; README mencatat konfigurasi URL dan SMTP hosted yang perlu dilakukan operator.
+- PASS: typecheck, ESLint repo (0 error/1 warning Fast Refresh lama), build (peringatan chunk >500 kB), unit MOM-015 7/7, koleksi 3 E2E, serta browser nyata untuk form recovery 1440/1024/390 dan callback expired 390. Auth E2E/DB/email lokal BLOCKED karena Docker tidak tersedia dan Playwright process gagal `spawn EPERM`; cloud dan email target tidak disentuh, UAT NOT_RUN. MOM-009 masih IN_PROGRESS sehingga MOM-015 tetap IN_PROGRESS. Bukti: [QA MOM-015](docs/qa/MOM-015-password-recovery-2026-09-30.md).
+
+### Added — 2026-09-30, MOM-014 template agenda pribadi (IN_PROGRESS)
+
+- Pengguna dapat mengelola template agenda miliknya di `/meeting-templates`, menyusun urutan agenda dan jenis item, mengisi nama serta judul awal opsional, lalu membuat draf dari template melalui RPC. Tombol penggunaan juga tersedia pada daftar notula.
+- Template bersifat pribadi melalui RLS dan RPC berotorisasi; perubahan/hapus memakai versi yang diharapkan. Instansiasi membuat ID notula baru dengan status DRAFT. Hanya nama/judul fallback dan struktur agenda dipakai; peserta, jadwal, pembahasan/hasil, PIC, evidence, action, dan status pekerjaan lama tidak disalin. Finalisasi memakai alur validasi yang ada.
+- PASS: typecheck, ESLint (0 error/1 warning lama), unit 41/41, browser nyata via API mock pada 1440/1024/390, pemeriksaan sintaks skrip DB, dan `git diff --check`. Build diblokir dependensi native Tailwind/`spawn EPERM`; DB/RLS belum dijalankan karena Supabase CLI/Docker tidak tersedia; Playwright Edge spawn BLOCKED. UAT NOT_RUN. Cloud tidak disentuh. Dependensi MOM-004/005/009 tetap IN_PROGRESS. [Bukti QA MOM-014](docs/qa/MOM-014-personal-agenda-templates-2026-09-30.md).
+
+### Fixed — 2026-09-30, MOM-004 pemulihan hapus draf
+
+- Tombol **Muat ulang** setelah konflik versi hapus kini membersihkan pesan konflik sebelum mengambil daftar terbaru.
+- Menambahkan uji UI untuk owner/admin/member, penghapusan memakai versi yang terlihat, dan alur konflik; assertion DB owner/admin/member serta versi stale ditambahkan. Edge UI-mock menghapus draf dari daftar pada lebar 390.
+- PASS: typecheck, lint (0 error / 1 warning Fast Refresh lama), unit 28/28, build (warning chunk >500 kB), pemeriksaan sintaks DB test, Edge UI-mock dan `git diff --check`. DB/RLS dan E2E terintegrasi NOT_RUN karena Supabase disposable tidak tersedia; cloud tidak digunakan untuk mutasi. Bukti: [QA MOM-004](docs/qa/MOM-004-draft-delete-recovery-2026-09-30.md).
+
+### Added — 2026-09-29, MOM-012 cetak notula
+
+- Detail DRAFT tersimpan dan FINAL kini menyediakan tampilan cetak A4 lewat dialog cetak browser. Isinya berasal dari snapshot tersimpan: metadata rapat WITA, peserta, agenda berurutan, pembahasan, hasil, serta PIC/jadwal kesepakatan. DRAFT diberi label jelas; editor, navigasi, dan kontrol evidence tidak masuk hasil cetak.
+- Draf kotor tidak dapat dicetak dari tombol. Pengguna diarahkan menyimpan atau membatalkan perubahan; jika memakai pintasan cetak browser, konten diganti dengan pesan yang sama sehingga perubahan belum tersimpan tidak tercetak.
+- Tidak ada migration atau endpoint baru. PDF dihasilkan dengan fitur Save as PDF browser; byte/tautan evidence dan status tindak lanjut terkini tidak dicampur ke notula.
+- Typecheck, lint (0 error/1 warning Fast Refresh lama di AuthProvider), seluruh unit 25/25, dan build PASS; build mempertahankan warning chunk >500 kB. Edge UI mock 1440/1024/390, PDF A4 panjang 8 halaman, draf kotor satu halaman pengarah, serta FINAL tanpa action satu halaman PASS terbatas. DB/RLS akses lintas role, Storage/E2E terintegrasi, dan UAT tetap NOT_RUN/BLOCKED; MOM-012 IN_PROGRESS karena dependensi belum DONE. Bukti: [QA MOM-012](docs/qa/MOM-012-print-2026-09-29.md).
+
+### Changed — 2026-09-30, MOM-012 regresi akses cetak
+
+- E2E lintas pengguna kini memeriksa owner/ADMIN dapat membuka dialog cetak untuk DRAFT, member tidak mendapat tombol ketika akses URL DRAFT ditolak, dan member dapat mencetak FINAL yang boleh dibaca. Print ditangkap oleh test page agar tidak membuka dialog OS.
+- PASS: ESLint pada spec E2E dan `node node_modules/@playwright/test/cli.js test --list` mengoleksi semua 12 skenario. Eksekusi E2E dan DB/RLS belum berjalan karena Supabase disposable belum tersedia; cloud tidak digunakan. MOM-012 tetap IN_PROGRESS. Bukti: [QA MOM-012](docs/qa/MOM-012-print-2026-09-29.md).
+
+### Added — 2026-09-30, MOM-013 pintasan tugas personal (IN_PROGRESS)
+
+- Tracker memiliki preset **Tugas Saya**, **Jatuh tempo hari ini**, **7 hari ke depan**, dan **Terlambat**, dengan hitungan personal exact, preset URL, filter PIC sesi, tanggal WITA, dan tautan ke action asli. Tampilan global aktif tetap menjadi default.
+- PASS: typecheck, lint (0 error / 1 warning lama), unit 37/37, build, Edge UI-mock responsif 1440/1024/390 untuk pintasan/kosong/reset, dan koleksi 13 skenario E2E. E2E dua PIC/DB/RLS dan UAT belum dijalankan karena Supabase disposable tidak tersedia; cloud tidak disentuh. Dependensi MOM-006/008/009 tetap IN_PROGRESS. Bukti: [QA MOM-013](docs/qa/MOM-013-personal-shortcuts-2026-09-30.md).
+
 ### Backend cloud dan Tahap 0 — 2026-09-29
 
 - Menerapkan 14 migration ke proyek Supabase cloud `iccxlwfzojwtmwwvpfoe` tanpa seed, termasuk bucket Storage `evidence` privat dan kebijakan soft-delete terbaru. Deploy `manage-users` berhasil; signup publik dimatikan. Frontend lokal memakai URL cloud dan publishable key, tanpa secret. [Bukti migrasi](docs/qa/CLOUD-SUPABASE-2026-09-29.md).

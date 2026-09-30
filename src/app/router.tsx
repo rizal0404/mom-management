@@ -3,8 +3,10 @@ import { createBrowserRouter } from 'react-router'
 import { AppShell } from './AppShell'
 import { UnsavedChangesProvider } from './UnsavedChangesProvider'
 import { LoginPage } from '../modules/auth/LoginPage'
+import { PasswordRecoveryRequestPage, PasswordUpdatePage } from '../modules/auth/AccountSecurityPages'
 import { RequireActiveSession } from '../modules/auth/RequireActiveSession'
 import { MeetingsPage } from '../modules/meetings/MeetingsPage'
+import { MeetingTemplatesPage } from '../modules/meetings/MeetingTemplatesPage'
 import { MeetingEditorPage } from '../modules/meetings/MeetingEditorPage'
 import { ActionsPage } from '../modules/actions/ActionsPage'
 import { ActionDetailPage } from '../modules/actions/ActionDetailPage'
@@ -26,6 +28,10 @@ export const router = createBrowserRouter([
       {
         path: 'meetings',
         element: <MeetingsPage />,
+      },
+      {
+        path: 'meeting-templates',
+        element: <MeetingTemplatesPage />,
       },
       {
         path: 'meetings/new',
@@ -53,5 +59,13 @@ export const router = createBrowserRouter([
   {
     path: '/login',
     element: <LoginPage />,
+  },
+  {
+    path: '/account/recovery',
+    element: <PasswordRecoveryRequestPage />,
+  },
+  {
+    path: '/account/password',
+    element: <PasswordUpdatePage />,
   },
 ])

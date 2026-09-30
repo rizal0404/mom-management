@@ -46,6 +46,23 @@ Index: owner/status/tanggal pada meetings; meeting_id/position pada items; pic/s
 - Finalisasi mengunci rapat, memvalidasi isinya, membuat action, dan menandai FINAL dalam satu transaksi. `source_item_id UNIQUE` mencegah duplikasi. Retry finalisasi rapat yang sudah final mengembalikan hasil lama setelah pemeriksaan akses, tanpa write baru.
 - Edit item/participant pada draf ikut mengunci dan menaikkan versi meeting yang sama; jangan biarkan perubahan anak melewati guard finalisasi.
 
+### Template agenda pribadi (MOM-014)
+
+- Anggota aktif dapat membuat, mengubah, menghapus, dan memakai template miliknya sendiri. Template pribadi tidak dapat dilihat atau dikelola anggota lain, termasuk ADMIN yang bukan pemilik; setiap baca/write dibatasi RLS dan RPC, bukan hanya kontrol UI.
+- Template menyimpan nama, judul awal opsional, dan urutan agenda beserta jenis NOTE/DECISION/TASK/PENDING_MATTER. Template tidak menyimpan pembahasan, hasil, peserta, waktu/lokasi/pimpinan rapat, PIC, tanggal, evidence, atau status action.
+- Perubahan template memakai versi server dan menolak versi stale. Draf yang telah dibuat adalah salinan mandiri; perubahan atau penghapusan template tidak mengubah draf/notula tersebut.
+- Memakai template membuat notula baru berstatus DRAFT dengan ID dan owner sesi baru. Judul awal dipakai jika diisi; jika kosong, nama template menjadi judul awal agar draf dapat disimpan. Waktu rapat, lokasi, pimpinan, peserta, pembahasan, hasil, PIC, dan tanggal tetap kosong/null.
+- Finalisasi draf dari template melalui RPC finalisasi biasa beserta semua validasi peserta, metadata rapat, hasil, PIC aktif, dan jadwal. Jenis TASK/PENDING_MATTER pada template tidak membuat action sebelum finalisasi dan tidak menyalin PIC/jadwal dari rapat sebelumnya.
+- Template agenda adalah struktur untuk pembuatan manual. Tidak ada penjadwal rapat berulang atau template bersama tim.
+
+### Cetak notula (MOM-012)
+
+- Notula yang sudah tersimpan dapat dicetak melalui dialog cetak browser dan disimpan sebagai PDF dari browser. Tampilan cetak berukuran A4 dan memakai snapshot data tersimpan, bukan form yang sedang diedit.
+- Owner/admin dapat mencetak DRAFT yang memang dapat mereka buka; member lain tetap ditolak oleh akses route/data yang sama saat membuka URL langsung. FINAL mengikuti akses baca notula final untuk anggota aktif. Fitur cetak tidak menambahkan endpoint publik atau akses baru.
+- Isi mencakup status DRAF bila sesuai, judul, waktu WITA, pimpinan, lokasi/tautan, peserta, agenda, pembahasan, hasil, serta PIC dan jadwal kesepakatan untuk TASK/PENDING_MATTER. Urutan mengikuti posisi agenda tersimpan. Status action terkini tidak dicampur dengan kesepakatan rapat.
+- Bila draf berubah tetapi belum disimpan, tombol cetak mengarahkan pengguna untuk menyimpan atau membatalkan perubahan. Pintasan cetak browser saat draf kotor hanya menampilkan pesan tersebut, bukan data yang belum tersimpan. Sesudah data tersimpan/cancel, pengguna dapat mencetak ulang.
+- Navigasi, editor, evidence controls, dan tombol aplikasi tidak masuk hasil cetak. Lampiran privat tidak ditempelkan dan tautan evidence tidak dicetak. PDF/DOCX dengan kop, nomor halaman, tanda tangan, serta format organisasi menjadi perluasan terpisah.
+
 ## Tindak lanjut
 
 | Status | Label | Makna |
@@ -79,7 +96,7 @@ Index: owner/status/tanggal pada meetings; meeting_id/position pada items; pic/s
 
 Asumsi satu tim: anggota aktif melihat semua notula FINAL beserta actions dan riwayatnya. Hanya owner/admin melihat DRAFT. Anggota aktif boleh membuat draf sendiri. ADMIN mengelola semua notula/actions dan akun pengguna; peran PIC ditentukan per action, bukan role global tambahan. Profil aktif (nama/ID) terbaca untuk pilihan PIC; email akun hanya dikembalikan Edge Function kepada ADMIN aktif dan tidak dipublikasikan pada direktori PIC.
 
-Provisioning awal dapat dilakukan melalui `/users` oleh ADMIN aktif. Edge Function memverifikasi JWT serta profil admin pada setiap panggilan, lalu membuat akun Auth dan profil dalam batas server; service-role key tidak pernah ada di browser. Signup publik dinonaktifkan. Admin dapat mengubah nama, role, dan status akun lain, tetapi tidak dapat mengubah role/status sendiri atau menonaktifkan administrator aktif terakhir. Akun tidak dihapus agar referensi notula/action/audit tetap utuh. Reset kata sandi belum menjadi fitur aplikasi; test account tetap terpisah dan kredensial hanya ada di environment lokal.
+Provisioning awal dapat dilakukan melalui `/users` oleh ADMIN aktif. Edge Function memverifikasi JWT serta profil admin pada setiap panggilan, lalu membuat akun Auth dan profil dalam batas server; service-role key tidak pernah ada di browser. Signup publik dinonaktifkan. Admin dapat mengubah nama, role, dan status akun lain, tetapi tidak dapat mengubah role/status sendiri atau menonaktifkan administrator aktif terakhir. Akun tidak dihapus agar referensi notula/action/audit tetap utuh. Admin tidak melihat atau mengirim sandi baru anggota; anggota memakai alur ganti/pulihkan kata sandi MOM-015. Test account tetap terpisah dan kredensial hanya ada di environment lokal.
 
 Semua tabel mengaktifkan RLS untuk pembacaan sesuai aturan di atas. Cabut direct INSERT/UPDATE/DELETE dari role client pada tabel domain/audit/profiles. Mutasi domain hanya lewat fungsi RPC yang menguji sesi, profil aktif, ownership/PIC, versi, dan input. Fungsi yang perlu hak lebih tinggi menggunakan `SECURITY DEFINER` secara terbatas, `search_path` kosong dengan nama tabel berkualifikasi, revoke EXECUTE dari PUBLIC/anon, grant hanya authenticated. Karena fungsi dapat melewati RLS, pemeriksaan akses eksplisit di dalamnya wajib dan harus diuji melalui request langsung. Jangan mengekspos fungsi generik untuk menjalankan SQL.
 
@@ -102,3 +119,11 @@ Standar error: VALIDATION, UNAUTHENTICATED, FORBIDDEN/NOT_FOUND (jangan bocorkan
 - Dashboard adalah data global yang boleh dilihat pengguna: jumlah aktif (OPEN/IN_PROGRESS/BLOCKED), terlambat, due dekat (hari ini sampai +7 hari inklusif, nonterminal), dan persentase selesai. Setiap label menjelaskan rentangnya.
 - Persentase selesai = DONE / semua actions selain CANCELLED × 100, dibulatkan ke integer. Penyebut nol tampil "Belum ada tindak lanjut", bukan 100%. Hitung dari semua record yang memenuhi akses, bukan hanya halaman tabel yang dimuat.
 - Kartu dashboard menuju tracker dengan filter sesuai metrik; rapat terbaru menampilkan lima notula yang boleh diakses, tanggal terbaru dahulu. Tidak ada angka tren/pencapaian karangan.
+
+## Ganti kata sandi dan pemulihan akun — MOM-015
+
+- Anggota dengan profil aktif dapat memperbarui kata sandi melalui sesi Auth. Penggantian memvalidasi panjang minimum dan kecocokan konfirmasi di UI, lalu Supabase Auth tetap memvalidasi kebijakan server. Kata sandi tidak masuk log, audit domain, atau penyimpanan aplikasi.
+- Halaman permintaan pemulihan menerima email dan selalu memberi pesan yang sama setelah permintaan diterima, baik akun terdaftar maupun tidak. Email dikirim oleh Supabase Auth; error jaringan, rate limit, konfigurasi redirect, atau pengiriman menampilkan pesan gagal generik.
+- Tautan email hanya diarahkan ke route tetap `/account/password` pada origin aplikasi saat ini. Callback hanya menampilkan form bila Auth menyediakan sesi yang valid dan profil aktif; tautan invalid, kedaluwarsa, atau terpakai menampilkan pesan dan aksi minta tautan baru. Akun nonaktif tetap tidak mendapat akses ke route/data domain.
+- Allowed Redirect URLs Supabase harus memuat URL callback lokal yang digunakan dan URL aplikasi produksi yang tepat. Jangan menerima `redirectTo` dari query/input pengguna atau wildcard luas pada layanan produksi.
+- Ganti kata sandi menggunakan service auth; permintaan reset tidak mencatat keberadaan akun. Tidak ada admin yang membaca atau mengirim kata sandi baru bagi anggota.

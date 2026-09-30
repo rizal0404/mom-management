@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { LogIn } from 'lucide-react'
-import { Navigate, useLocation, useNavigate } from 'react-router'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 
 import { useAuth } from './AuthProvider'
 import { loginSchema } from './authService'
@@ -55,6 +55,7 @@ export function LoginPage() {
             {isSubmitting ? 'Memeriksa…' : 'Masuk'}
           </button>
         </form>
+        <Link className="account-security-link login-recovery-link" to="/account/recovery">Lupa kata sandi?</Link>
       </section>
     </main>
   )

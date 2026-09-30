@@ -6,11 +6,13 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { useUnsavedChanges } from '../../app/useUnsavedChanges'
 import { deleteMeetingDraft, finalizeMeeting, getMeetingDraft, listActiveProfiles, saveMeetingDraft, type ActiveProfile, type MeetingDetail, type MeetingDraft } from './meetingService'
 import { FinalMeetingView } from './FinalMeetingView'
+import { MeetingPrintDocument, PrintMeetingButton } from './MeetingPrintDocument'
 import { formatWitaDateTimeInput, parseWitaDateTimeInput } from '../../lib/witaDateTime'
 
 type Participant = MeetingDraft['participants'][number]
 type Item = MeetingDraft['items'][number]
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
+type SavedDraftSnapshot = { title: string; startsAt: string; locationOrLink: string; chairName: string; people: Participant[]; items: Item[] }
 
 const participant = (): Participant => ({ display_name_snapshot: '' })
 const item = (position: number): Item => ({ position, agenda: '', discussion: '', result: '', kind: 'NOTE' })
@@ -56,6 +58,8 @@ export function MeetingEditorPage() {
   const [saving, setSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [isDirty, setIsDirty] = useState(false)
+  const [savedSnapshot, setSavedSnapshot] = useState<SavedDraftSnapshot | null>(null)
+  const [printFeedback, setPrintFeedback] = useState<string | null>(null)
   const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false)
   const pendingMeetingNavigation = useRef<string | null>(null)
 
@@ -115,15 +119,25 @@ export function MeetingEditorPage() {
   useEffect(() => { void listActiveProfiles().then(setProfiles).catch((reason: Error) => setError(reason.message)) }, [])
 
   const applyMeeting = useCallback((meeting: MeetingDetail) => {
+    const nextSnapshot: SavedDraftSnapshot = {
+      title: meeting.title,
+      startsAt: formatWitaDateTimeInput(meeting.starts_at),
+      locationOrLink: meeting.location_or_link ?? '',
+      chairName: meeting.chair_name ?? '',
+      people: meeting.meeting_participants.map((entry) => ({ ...entry })),
+      items: meeting.meeting_items.map((entry) => ({ ...entry })),
+    }
     setOwnerId(meeting.owner_id)
-    setTitle(meeting.title)
-    setStartsAt(formatWitaDateTimeInput(meeting.starts_at))
-    setLocationOrLink(meeting.location_or_link ?? '')
-    setChairName(meeting.chair_name ?? '')
+    setTitle(nextSnapshot.title)
+    setStartsAt(nextSnapshot.startsAt)
+    setLocationOrLink(nextSnapshot.locationOrLink)
+    setChairName(nextSnapshot.chairName)
     setVersion(meeting.version)
     setIsFinal(meeting.status === 'FINAL')
-    setPeople(meeting.meeting_participants.length ? meeting.meeting_participants : [participant()])
-    setItems(meeting.meeting_items.length ? meeting.meeting_items : [item(1)])
+    setPeople(nextSnapshot.people.length ? nextSnapshot.people : [participant()])
+    setItems(nextSnapshot.items.length ? nextSnapshot.items : [item(1)])
+    setSavedSnapshot(nextSnapshot)
+    setPrintFeedback(null)
   }, [])
 
   useEffect(() => {
@@ -146,6 +160,32 @@ export function MeetingEditorPage() {
     markDirty()
   }
 
+  function requestPrint() {
+    if (isDirty) {
+      setPrintFeedback('Simpan draf atau batalkan perubahan sebelum mencetak. Isi yang belum disimpan tidak akan dicetak.')
+      saveButtonRef.current?.focus()
+      return
+    }
+    setPrintFeedback(null)
+    window.print()
+  }
+
+  function discardPrintChanges() {
+    if (!savedSnapshot || !window.confirm('Batalkan semua perubahan draf yang belum disimpan?')) return
+    setTitle(savedSnapshot.title)
+    setStartsAt(savedSnapshot.startsAt)
+    setLocationOrLink(savedSnapshot.locationOrLink)
+    setChairName(savedSnapshot.chairName)
+    setPeople(savedSnapshot.people.length ? savedSnapshot.people.map((entry) => ({ ...entry })) : [participant()])
+    setItems(savedSnapshot.items.length ? savedSnapshot.items.map((entry) => ({ ...entry })) : [item(1)])
+    setIsDirty(false)
+    setGlobalDirty(false)
+    setSaveStatus('saved')
+    setError(null)
+    setPrintFeedback(null)
+    saveButtonRef.current?.focus()
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault()
     if (!title.trim()) {
@@ -162,9 +202,12 @@ export function MeetingEditorPage() {
     }
     setSaving(true); setError(null); setSaveStatus('saving')
     try {
-      const meeting = await saveMeetingDraft({ id, title, starts_at: startsAtUtc, location_or_link: locationOrLink || null, chair_name: chairName || null, participants: people.filter((entry) => entry.display_name_snapshot.trim()), items: items.map((entry, index) => ({ ...entry, position: index + 1 })).filter((entry) => entry.agenda.trim()) }, version)
+      const payload: MeetingDraft = { id, title, starts_at: startsAtUtc, location_or_link: locationOrLink || null, chair_name: chairName || null, participants: people.filter((entry) => entry.display_name_snapshot.trim()), items: items.map((entry, index) => ({ ...entry, position: index + 1 })).filter((entry) => entry.agenda.trim()) }
+      const meeting = await saveMeetingDraft(payload, version)
       setVersion(meeting.version)
       setIsDirty(false); setGlobalDirty(false); setSaveStatus('saved')
+      setSavedSnapshot({ title: payload.title, startsAt: formatWitaDateTimeInput(payload.starts_at), locationOrLink: payload.location_or_link ?? '', chairName: payload.chair_name ?? '', people: payload.participants, items: payload.items })
+      setPrintFeedback(null)
       if (!id) {
         allowNextNavigation()
         pendingMeetingNavigation.current = meeting.id
@@ -221,8 +264,9 @@ export function MeetingEditorPage() {
       ? <section className="empty-state" role="alert"><h3>Notula tidak dapat dimuat</h3><p>{failure.message}</p><button className="button button--primary" type="button" onClick={() => setMeetingLoadRetry((value) => value + 1)}>Coba lagi</button></section>
       : <section className="empty-state" aria-live="polite"><h3>Memuat detail notula</h3><p>Mengambil data rapat…</p></section>
   }
-  if (isFinal) return <FinalMeetingView id={id} title={title} startsAt={startsAt} chairName={chairName} locationOrLink={locationOrLink} people={people} items={items} profiles={profiles} canUploadEvidence={canUploadEvidence} />
+  if (isFinal) return <FinalMeetingView id={id} title={title} startsAt={startsAt} chairName={chairName} locationOrLink={locationOrLink} people={people} items={items} profiles={profiles} canUploadEvidence={canUploadEvidence} onPrint={() => window.print()} />
   return <section className="meeting-editor meeting-editor--draft" aria-labelledby="meeting-form-title">
+    {id && savedSnapshot && <MeetingPrintDocument title={savedSnapshot.title} startsAt={savedSnapshot.startsAt} chairName={savedSnapshot.chairName} locationOrLink={savedSnapshot.locationOrLink} people={savedSnapshot.people} items={savedSnapshot.items} profiles={profiles} status="DRAFT" dirty={isDirty} />}
     <nav className="meeting-detail__breadcrumb" aria-label="Breadcrumb">
       <Link to="/meetings"><Home size={15} aria-hidden="true" /><span>Notula Rapat</span></Link>
       <ChevronRight size={14} aria-hidden="true" />
@@ -238,7 +282,10 @@ export function MeetingEditorPage() {
         </div>
         <p>Catat informasi, peserta, dan hasil pembahasan. Draf dapat dilanjutkan dan disimpan sebelum finalisasi.</p>
       </div>
+      {id && savedSnapshot && <PrintMeetingButton onClick={requestPrint} disabled={saving} />}
     </header>
+
+    {printFeedback && <div className="meeting-print-feedback" role="alert"><p>{printFeedback}</p><button className="button button--quiet" type="button" onClick={discardPrintChanges}>Batalkan perubahan</button></div>}
 
     <form className="meeting-draft__form" onSubmit={submit} aria-busy={saving}>
       <section className="editor-card meeting-draft__card" aria-labelledby="meeting-info-title" inert={saving}>

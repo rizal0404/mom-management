@@ -10,8 +10,11 @@ import { chromium } from '@playwright/test'
 
 const origin = 'http://127.0.0.1:5175'
 const apiOrigin = 'http://127.0.0.1:54321'
+const screenshotDirectory = process.env.MOM_QA_SCREENSHOT_DIR ?? 'docs/qa'
 const userId = randomUUID()
 const meetingId = randomUUID()
+const templateId = randomUUID()
+const templateItemIds = [randomUUID(), randomUUID()]
 const now = Math.floor(Date.now() / 1000)
 const jwt = [
   Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url'),
@@ -21,6 +24,17 @@ const jwt = [
 const user = { id: userId, aud: 'authenticated', role: 'authenticated', email: 'qa-stage0.demo@mom.local', app_metadata: {}, user_metadata: {}, created_at: new Date().toISOString() }
 const profile = { id: userId, display_name: 'QA DATA DEMO', role: 'MEMBER', is_active: true }
 let meeting
+let templates = [{
+  id: templateId,
+  owner_id: userId,
+  name: 'Rapat evaluasi DATA DEMO',
+  initial_title: null,
+  version: 1,
+  meeting_template_items: [
+    { id: templateItemIds[0], position: 1, agenda: 'Tinjau tindak lanjut DATA DEMO', kind: 'TASK' },
+    { id: templateItemIds[1], position: 2, agenda: 'Bahas hambatan DATA DEMO', kind: 'DECISION' },
+  ],
+}]
 let failSaveOnce = false
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '5175', '--strictPort'], {
   stdio: 'ignore', windowsHide: true,
@@ -48,9 +62,54 @@ async function mockApi(route) {
     }
     return fulfill(meeting)
   }
+  if (path === '/rest/v1/rpc/delete_meeting_draft') {
+    meeting = null
+    return fulfill(null)
+  }
+  if (path === '/rest/v1/rpc/save_meeting_template') {
+    const { p_payload: payload } = request.postDataJSON()
+    const previous = templates.find((template) => template.id === payload.id)
+    const saved = {
+      id: previous?.id ?? randomUUID(),
+      owner_id: userId,
+      name: payload.name,
+      initial_title: payload.initial_title,
+      version: (previous?.version ?? 0) + 1,
+      meeting_template_items: payload.items.map((item, index) => ({ ...item, id: randomUUID(), position: index + 1 })),
+    }
+    templates = [saved, ...templates.filter((template) => template.id !== saved.id)]
+    return fulfill({ id: saved.id, owner_id: saved.owner_id, name: saved.name, initial_title: saved.initial_title, version: saved.version })
+  }
+  if (path === '/rest/v1/rpc/delete_meeting_template') {
+    const { p_id } = request.postDataJSON()
+    templates = templates.filter((template) => template.id !== p_id)
+    return fulfill(null)
+  }
+  if (path === '/rest/v1/rpc/create_meeting_draft_from_template') {
+    const template = templates.find((entry) => entry.id === request.postDataJSON().p_template_id)
+    if (!template) return fulfill({ message: 'FORBIDDEN' }, 403)
+    meeting = {
+      id: meetingId,
+      title: template.initial_title || template.name,
+      owner_id: userId,
+      starts_at: null,
+      location_or_link: null,
+      chair_name: null,
+      status: 'DRAFT',
+      version: 1,
+      meeting_participants: [],
+      meeting_items: template.meeting_template_items.map((item) => ({
+        ...item, discussion: null, result: null, draft_pic_id: null, draft_start_date: null, draft_due_date: null,
+      })),
+    }
+    return fulfill({ id: meeting.id, title: meeting.title, owner_id: meeting.owner_id, status: meeting.status, version: meeting.version })
+  }
+  if (path === '/rest/v1/meeting_templates') return fulfill(templates)
   if (path === '/rest/v1/meetings') {
     if (new URL(request.url()).searchParams.has('id')) return fulfill(meeting ?? null)
-    return fulfill([])
+    const rows = meeting ? [{ id: meeting.id, title: meeting.title, starts_at: meeting.starts_at, chair_name: meeting.chair_name, owner_id: meeting.owner_id, status: meeting.status, version: meeting.version }] : []
+    headers['content-range'] = rows.length ? '0-0/1' : '0-0/0'
+    return fulfill(rows)
   }
   if (path === '/rest/v1/actions') return fulfill(request.method() === 'HEAD' ? '' : [])
   return fulfill([])
@@ -86,7 +145,7 @@ try {
     await page.waitForTimeout(450)
     const overflow = await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)
     assert(overflow, `Form overflows at ${width}`)
-    await page.screenshot({ path: `docs/qa/stage0-form-${width}.png`, fullPage: true })
+    await page.screenshot({ path: `${screenshotDirectory}/stage0-form-${width}.png`, fullPage: true })
   }
   await page.getByRole('button', { name: 'Simpan draf' }).click()
   await page.waitForURL(`${origin}/meetings/${meetingId}`)
@@ -119,8 +178,56 @@ try {
   await login(jakartaPage)
   await jakartaPage.goto(`${origin}/meetings/${meetingId}`)
   assert.equal(await jakartaPage.getByLabel('Waktu rapat (WITA)').inputValue(), '2026-09-22T09:00')
+  await page.goto(`${origin}/meetings`)
+  await page.getByRole('link', { name: /Retry DATA DEMO/ }).waitFor()
+  page.once('dialog', (dialog) => void dialog.accept())
+  await page.getByRole('button', { name: 'Hapus notula Retry DATA DEMO' }).click()
+  await page.getByText('Belum ada notula').waitFor()
+  await page.goto(`${origin}/actions`)
+  const personalSummary = page.getByLabel('Ringkasan pribadi')
+  await personalSummary.waitFor()
+  assert.deepEqual(await personalSummary.locator('.personal-action-card strong').allTextContents(), ['0', '0', '0', '0'])
+  for (const width of [1440, 1024, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.waitForTimeout(100)
+    const noOverflow = await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)
+    assert(noOverflow, `Personal action summary overflows at ${width}`)
+    await page.screenshot({ path: `${screenshotDirectory}/personal-actions-${width}.png`, fullPage: true })
+  }
+  await personalSummary.getByRole('link', { name: /Tugas Saya/ }).click()
+  await page.waitForURL(`${origin}/actions?preset=mine`)
+  assert.equal(await personalSummary.getByRole('link', { name: /Tugas Saya/ }).getAttribute('aria-current'), 'page')
+  await page.getByText('Belum ada tindak lanjut').waitFor()
+  await page.getByRole('button', { name: 'Reset filter' }).click()
+  await page.waitForURL(`${origin}/actions`)
+  await page.goto(`${origin}/meeting-templates`)
+  await page.getByRole('heading', { name: 'Template agenda' }).waitFor()
+  for (const width of [1440, 1024, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.waitForTimeout(100)
+    const noOverflow = await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)
+    assert(noOverflow, `Meeting templates page overflows at ${width}`)
+    await page.screenshot({ path: `${screenshotDirectory}/mom014-templates-${width}.png`, fullPage: true })
+  }
+  await page.getByRole('button', { name: 'Edit', exact: true }).click()
+  await page.getByLabel('Nama template').fill('Rapat evaluasi bulanan DATA DEMO')
+  await page.getByRole('button', { name: 'Simpan template' }).click()
+  await page.getByText('Template tersimpan.').waitFor()
+  assert.equal(templates[0].version, 2)
+  await page.getByRole('button', { name: 'Gunakan template' }).click()
+  await page.waitForURL(`${origin}/meetings/${meetingId}`)
+  assert.equal(await page.getByLabel('Judul rapat').inputValue(), 'Rapat evaluasi bulanan DATA DEMO')
+  assert.equal(await page.getByLabel('Waktu rapat (WITA)').inputValue(), '')
+  assert.equal(await page.getByLabel('Lokasi atau tautan').inputValue(), '')
+  assert.equal(await page.getByLabel('Pimpinan rapat').inputValue(), '')
+  assert.equal(await page.getByLabel('Peserta 1').inputValue(), '')
+  assert.equal(await page.getByLabel('PIC').inputValue(), '')
+  assert.equal(await page.getByLabel('Mulai').inputValue(), '')
+  assert.equal(await page.getByLabel('Jatuh tempo').inputValue(), '')
+  assert.equal(await page.getByLabel('Pembahasan').first().inputValue(), '')
+  assert.equal(await page.getByLabel('Hasil rapat').first().inputValue(), '')
   assert.deepEqual(errors, [])
-  console.log('PASS browser Edge UI-mock: form 1440/1024/390, WITA UTC/Jakarta, save/reload, failure/retry, finalize keyboard; DB integration remains NOT_RUN')
+  console.log('PASS browser Edge UI-mock: form 1440/1024/390, WITA UTC/Jakarta, save/reload/failure/retry, finalize keyboard, owner delete, personal shortcuts, and MOM-014 template edit/use/blank-field checks at 1440/1024/390; DB role/RPC integration remains NOT_RUN')
   await jakarta.close()
   await context.close()
 } finally {

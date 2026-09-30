@@ -1,6 +1,6 @@
 # Rencana pengembangan MOM Task Management
 
-Tanggal: **29 September 2026**. Task dokumentasi: **DOC-002**. Status: **usulan prioritas dan lingkup**, belum merupakan implementasi atau persetujuan rilis.
+Tanggal awal: **29 September 2026**. Status roadmap diperbarui **30 September 2026**. Task dokumentasi: **DOC-002**. Dokumen ini memuat prioritas dan lingkup; status implementasi dicatat terpisah dan bukan persetujuan rilis.
 
 Tujuan: memudahkan pencatatan rapat, memastikan PIC mengetahui pekerjaan yang perlu ditindaklanjuti, dan menyediakan laporan yang dapat ditelusuri ke notula serta bukti penyelesaian.
 
@@ -19,7 +19,7 @@ Penilaian ini berasal dari source dan catatan pemeriksaan yang tersedia hingga 2
 | Pengguna | Login, admin membuat/mengelola akun, blokir role escalation | Ganti/reset kata sandi belum tersedia di aplikasi |
 | Kesiapan | Scripts lint/typecheck/unit/build/DB/E2E/evidence/users tersedia | Matriks acceptance belum lengkap; UAT masih NOT_RUN; operasi produksi belum divalidasi |
 
-Status teknis terakhir: MOM-001–003, MOM-007, MOM-010 DONE; MOM-004/005/006/008/009/011 IN_PROGRESS. Hasil PASS historis berlaku pada cakupan dan tanggalnya, bukan bukti seluruh perubahan terbaru lulus.
+Status teknis baseline: MOM-001–003, MOM-007, MOM-010 DONE; MOM-004/005/006/008/009/011 IN_PROGRESS. Pembaruan 30 September: MOM-012, MOM-013, dan MOM-014 dimulai atas permintaan langsung pengguna; ketiganya IN_PROGRESS dengan dependensi terbuka. Hasil PASS historis berlaku pada cakupan dan tanggalnya, bukan bukti seluruh perubahan terbaru lulus.
 
 Dasar lokal: [progress](../TASK_PROGRESS.md), [spesifikasi](PRODUCT_SPEC.md), [checklist UAT](qa/MOM-009-UAT.md), [route](../src/app/router.tsx), [service action](../src/modules/actions/actionService.ts), [service dashboard](../src/modules/dashboard/dashboardService.ts), dan [scripts aktual](../package.json).
 
@@ -44,7 +44,7 @@ Penutupan teknis tiap task berdasarkan acceptance-nya. UAT pengguna tetap gate p
 
 ## 3. Backlog fitur yang direkomendasikan
 
-Semua ID berikut adalah **usulan task baru, belum dimulai**. Dependensi berarti task terkait harus DONE secara teknis sebelum implementasi dimulai. Nomor adalah identitas; urutan pelaksanaan mengikuti prioritas dan dependensi. Tidak ada perubahan aturan produk aktif hanya karena fitur muncul di dokumen ini.
+Semua ID berikut adalah **usulan task baru**. MOM-012 mulai dikerjakan pada 29 September 2026, MOM-013 dan MOM-014 pada 30 September, lalu MOM-015 dimulai atas permintaan langsung pengguna pada 30 September ketika MOM-014 masih berlangsung di sesi lain. MOM-014/015 berstatus IN_PROGRESS; dependensi MVP MOM-004/005/009 masih terbuka. Dependensi secara normal berarti task terkait harus DONE secara teknis sebelum implementasi dimulai. MOM-012–015 dipilih langsung meskipun dependensinya masih terbuka, sehingga status prasyarat dan gate integrasi tetap tercatat belum terpenuhi. Nomor adalah identitas; urutan pelaksanaan mengikuti prioritas dan dependensi. Tidak ada perubahan aturan produk aktif hanya karena fitur muncul di dokumen ini.
 
 Estimasi adalah perkiraan awal hari kerja satu pelaksana, termasuk pengujian relevan dan dokumentasi, tetapi belum termasuk waktu tunggu pengguna, akun, layanan email, atau deployment. Estimasi perlu ditinjau setelah Tahap 0; bukan janji tanggal selesai.
 
@@ -220,4 +220,4 @@ Ukuran keberhasilan utama: waktu menyiapkan notula dari template/teks, persentas
 - Script yang tersedia sekarang: `npm run lint`, `npm run typecheck`, `npm run test`, `npm run build`, `npm run test:db`, `npm run test:e2e`, `npm run test:evidence`, `npm run test:users`. Jalankan sesuai dampak dan prasyaratnya. Script fitur baru baru boleh disebut tersedia setelah dibuat.
 - Catat tanggal, perintah, hasil dan bukti pada progress/QA. Fitur baru harus memenuhi acceptance dan dokumen produk/UI diperbarui saat implementasi. Rilis/pemakaian memerlukan UAT pengguna; deployment adalah task terpisah.
 
-Langkah implementasi berikutnya yang direkomendasikan: **lanjutkan MOM-004**, dengan sasaran penutupan state form, perilaku waktu WITA, penghapusan draf dan QA responsif terbaru. Dependensinya MOM-003 sudah DONE. Setelah fondasi tervalidasi, mulai fitur baru dari **MOM-014 template agenda**, kemudian **MOM-018 rapat lanjutan** dan **MOM-021 bantuan AI**.
+Urutan default tetap menuntaskan MOM-004/005/006/008/011/009 sebelum fitur yang bergantung padanya. Atas permintaan langsung pengguna, MOM-012 dimulai pada 29 September dan MOM-013/MOM-014 pada 30 September; masing-masing tetap IN_PROGRESS sampai dependensi dan gate integrasinya tervalidasi. Prioritas fitur baru tetap **MOM-014 template agenda → MOM-018 rapat lanjutan → MOM-021 bantuan AI**.
